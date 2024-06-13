@@ -73,16 +73,8 @@ export const loader = authLoader({ returnPathname: '/dashboard' });
 For pages where you want to display a signed-in and signed-out view, use `withAuth` to retrieve the user profile from WorkOS.
 
 ```jsx
-import type {
-  ActionFunctionArgs,
-  LoaderFunctionArgs,
-} from '@remix-run/node';
-import {
-  Link,
-  useRouteLoaderData,
-  json,
-  Form,
-} from '@remix-run/react';
+import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node';
+import { Link, useRouteLoaderData, json, Form } from '@remix-run/react';
 import { getSignInUrl, getSignUpUrl, withAuth, signOut } from '@workos-inc/authkit-remix';
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -106,8 +98,8 @@ export default function HomePage() {
   if (!user) {
     return (
       <>
-        <Link href={signInUrl}>Log in</Link>
-        <Link href={signUpUrl}>Sign Up</Link>
+        <Link to={signInUrl}>Log in</Link>
+        <Link to={signUpUrl}>Sign Up</Link>
       </>
     );
   }
@@ -126,7 +118,7 @@ export default function HomePage() {
 For pages where a signed-in user is mandatory, you can use the `ensureSignedIn` option:
 
 ```jsx
-const { user } = await withAuth({ ensureSignedIn: true });
+const { user } = await withAuth(request, { ensureSignedIn: true });
 ```
 
 Enabling `ensureSignedIn` will redirect users to AuthKit if they attempt to access the page without being authenticated.
