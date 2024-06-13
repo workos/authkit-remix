@@ -1,6 +1,5 @@
 import { WorkOS } from '@workos-inc/node';
 import { WORKOS_API_HOSTNAME, WORKOS_API_HTTPS, WORKOS_API_KEY, WORKOS_API_PORT } from './env-variables.js';
-import packageJson from '../package.json';
 
 const options = {
   apiHostname: WORKOS_API_HOSTNAME,
@@ -8,7 +7,7 @@ const options = {
   port: WORKOS_API_PORT ? parseInt(WORKOS_API_PORT) : undefined,
   appInfo: {
     name: 'authkit-remix',
-    version: packageJson.version,
+    version: '0.1.0',
   },
 };
 
