@@ -50,7 +50,7 @@ WORKOS_API_PORT=3000 # port to use for API calls
 
 ### Callback route
 
-WorkOS requires that you have a callback URL to redirect users back to after they've authenticated. In your Remix app, [create a new route](https://remix.run/docs/en/main/discussion/routes), name it `callback.tsx` and add the following.
+WorkOS requires that you have a callback URL to redirect users back to after they've authenticated. In your Remix app, [create a new route](https://remix.run/docs/en/main/discussion/routes) and add the following:
 
 ```ts
 import { authLoader } from '@workos-inc/authkit-remix';
@@ -58,7 +58,7 @@ import { authLoader } from '@workos-inc/authkit-remix';
 export const loader = authLoader();
 ```
 
-Make sure this route matches the `WORKOS_REDIRECT_URI` variable and the configured redirect URI in your WorkOS dashboard. For instance if your redirect URI is `http://localhost:3000/auth/callback` then you'd put the above code in `/app/routes/callback.ts`.
+Make sure this route matches the `WORKOS_REDIRECT_URI` variable and the configured redirect URI in your WorkOS dashboard. For instance if your redirect URI is `http://localhost:3000/callback` then you'd put the above code in `/app/routes/callback.ts`.
 
 You can also control the pathname the user will be sent to after signing-in by passing a `returnPathname` option to `authLoader` like so:
 
@@ -78,7 +78,14 @@ import { Link, useRouteLoaderData, json, Form } from '@remix-run/react';
 import { getSignInUrl, getSignUpUrl, withAuth, signOut } from '@workos-inc/authkit-remix';
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { user } = await withAuth(request);
+  const {
+    user,
+    sessionId,
+    organizationId,
+    role,
+    impersonator,
+    accessToken
+  } = await withAuth(request);
 
   return json({
     signInUrl: await getSignInUrl(),
