@@ -18,7 +18,7 @@ yarn add @workos-inc/authkit-remix
 
 ## Pre-flight
 
-Rename the `.env.example` file to `.env` and ensure the following values are present in it. The client ID and API key can be found in the [WorkOS dashboard](https://dashboard.workos.com), and the redirect URI can also be configured there.
+Make sure the following values are present in your `.env.local` environment variables file. The client ID and API key can be found in the [WorkOS dashboard](https://dashboard.workos.com), and the redirect URI can also be configured there.
 
 ```sh
 WORKOS_CLIENT_ID="client_..." # retrieved from the WorkOS dashboard
