@@ -23,7 +23,7 @@ Make sure the following values are present in your `.env.local` environment vari
 ```sh
 WORKOS_CLIENT_ID="client_..." # retrieved from the WorkOS dashboard
 WORKOS_API_KEY="sk_test_..." # retrieved from the WorkOS dashboard
-WORKOS_REDIRECT_URI="http://localhost:3000/callback" # configured in the WorkOS dashboard
+WORKOS_REDIRECT_URI="http://localhost:5173/callback" # configured in the WorkOS dashboard
 WORKOS_COOKIE_PASSWORD="<your password>" # generate a secure password here
 ```
 
@@ -43,7 +43,7 @@ Certain environment variables are optional and can be used to debug or configure
 WORKOS_COOKIE_MAX_AGE='600' # maximum age of the cookie in seconds. Defaults to 31 days
 WORKOS_API_HOSTNAME='api.workos.com' # base WorkOS API URL
 WORKOS_API_HTTPS=true # whether to use HTTPS in API calls
-WORKOS_API_PORT=3000 # port to use for API calls
+WORKOS_API_PORT=5173 # port to use for API calls
 ```
 
 ## Setup
@@ -58,7 +58,7 @@ import { authLoader } from '@workos-inc/authkit-remix';
 export const loader = authLoader();
 ```
 
-Make sure this route matches the `WORKOS_REDIRECT_URI` variable and the configured redirect URI in your WorkOS dashboard. For instance if your redirect URI is `http://localhost:3000/callback` then you'd put the above code in `/app/routes/callback.ts`.
+Make sure this route matches the `WORKOS_REDIRECT_URI` variable and the configured redirect URI in your WorkOS dashboard. For instance if your redirect URI is `http://localhost:5173/callback` then you'd put the above code in `/app/routes/callback.ts`.
 
 You can also control the pathname the user will be sent to after signing-in by passing a `returnPathname` option to `authLoader` like so:
 
@@ -74,18 +74,12 @@ For pages where you want to display a signed-in and signed-out view, use `withAu
 
 ```jsx
 import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node';
-import { Link, useRouteLoaderData, json, Form } from '@remix-run/react';
+import { Link, useLoaderData, json, Form } from '@remix-run/react';
 import { getSignInUrl, getSignUpUrl, withAuth, signOut } from '@workos-inc/authkit-remix';
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  const {
-    user,
-    sessionId,
-    organizationId,
-    role,
-    impersonator,
-    accessToken
-  } = await withAuth(request);
+export async function loader({request}: LoaderFunctionArgs) {
+  // additional properties include: sessionId, organizationId, role, impersonator, accessToken
+  const {user} = await withAuth(request);
 
   return json({
     signInUrl: await getSignInUrl(),
@@ -106,6 +100,7 @@ export default function HomePage() {
     return (
       <>
         <Link to={signInUrl}>Log in</Link>
+        <br />
         <Link to={signUpUrl}>Sign Up</Link>
       </>
     );
