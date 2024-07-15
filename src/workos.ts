@@ -7,7 +7,7 @@ const options = {
   port: WORKOS_API_PORT ? parseInt(WORKOS_API_PORT) : undefined,
   appInfo: {
     name: 'authkit-remix',
-    version: '0.1.0',
+    version: '0.2.0',
   },
 };
 
