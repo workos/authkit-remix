@@ -132,12 +132,13 @@ async function withAuth(
 }
 
 async function terminateSession(request: Request) {
-  const cookieSession = await getSession(request.headers.get('Cookie'));
+  const encryptedSession = await getSession(request.headers.get('Cookie'));
+  const { accessToken } = (await getSessionFromCookie(request.headers.get('Cookie'))) as Session;
 
-  const { sessionId } = getClaimsFromAccessToken(cookieSession.get('accessToken'));
+  const { sessionId } = getClaimsFromAccessToken(accessToken);
 
   const headers = {
-    'Set-Cookie': await destroySession(cookieSession),
+    'Set-Cookie': await destroySession(encryptedSession),
   };
 
   if (sessionId) {
@@ -145,6 +146,7 @@ async function terminateSession(request: Request) {
       headers,
     });
   }
+
   return redirect('/', {
     headers,
   });
