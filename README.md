@@ -80,16 +80,21 @@ import { getSignInUrl, getSignUpUrl, withAuth, signOut } from '@workos-inc/authk
 export async function loader({ request }: LoaderFunctionArgs) {
   // Returns the user, sessionId, organizationId, role, permissions, impersonator and accessToken
   // Additionally, anything in the 'data' object will also be returned
-  return await withAuth(request, {
-    data: {
-      signInUrl: await getSignInUrl(),
-      signUpUrl: await getSignUpUrl(),
+  return await withAuth(
+    request,
+    {
+      data: {
+        signInUrl: await getSignInUrl(),
+        signUpUrl: await getSignUpUrl(),
+      },
     },
-    // Optional headers object
-    headers: {
-      'x-my-header': 'foo',
-    }
-  });
+    {
+      // Optional ResponseInit object
+      headers: {
+        'x-my-header': 'foo',
+      },
+    },
+  );
 }
 
 export async function action({ request }: ActionFunctionArgs) {

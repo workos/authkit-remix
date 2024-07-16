@@ -1,4 +1,4 @@
-import { json, redirect } from '@remix-run/node';
+import { json, redirect, SessionData } from '@remix-run/node';
 import { WORKOS_CLIENT_ID, WORKOS_COOKIE_PASSWORD } from './env-variables.js';
 import { AccessToken, Session } from './interfaces.js';
 import { getSession, destroySession, commitSession } from './cookie.js';
@@ -11,7 +11,7 @@ import { jwtVerify, createRemoteJWKSet, decodeJwt } from 'jose';
 const JWKS = createRemoteJWKSet(new URL(workos.userManagement.getJwksUrl(WORKOS_CLIENT_ID)));
 
 async function updateSession(request: Request, debug: boolean) {
-  const session = await getSessionFromCookie(request.headers.get('Cookie'));
+  const session = await getSessionFromCookie(request.headers.get('Cookie') as string);
 
   // If no session, just continue
   if (!session) {
@@ -72,17 +72,16 @@ async function encryptSession(session: Session) {
 
 async function withAuth(
   request: Request,
-  options: {
+  {
+    ensureSignedIn = false,
+    debug = false,
+    data = {},
+  }: {
     ensureSignedIn?: boolean;
     debug?: boolean;
     data?: object;
-    headers?: Record<string, string>;
-  },
-): Promise<Response>;
-
-async function withAuth(
-  request: Request,
-  { ensureSignedIn = false, debug = false, data = {}, headers = {} } = {},
+  } = {},
+  init: ResponseInit = {},
 ): Promise<Response> {
   const session = await updateSession(request, debug);
 
@@ -103,9 +102,7 @@ async function withAuth(
         user: null,
         ...data,
       },
-      {
-        headers,
-      },
+      init,
     );
   }
 
@@ -123,8 +120,9 @@ async function withAuth(
       ...data,
     },
     {
+      status: init.status ?? 200,
       headers: {
-        ...headers,
+        ...init.headers,
         ...session.headers,
       },
     },
@@ -133,7 +131,10 @@ async function withAuth(
 
 async function terminateSession(request: Request) {
   const encryptedSession = await getSession(request.headers.get('Cookie'));
-  const { accessToken } = (await getSessionFromCookie(request.headers.get('Cookie'))) as Session;
+  const { accessToken } = (await getSessionFromCookie(
+    request.headers.get('Cookie') as string,
+    encryptedSession,
+  )) as Session;
 
   const { sessionId } = getClaimsFromAccessToken(accessToken);
 
@@ -163,8 +164,10 @@ function getClaimsFromAccessToken(accessToken: string) {
   };
 }
 
-async function getSessionFromCookie(cookie: string | null) {
-  const session = await getSession(cookie);
+async function getSessionFromCookie(cookie: string, session?: SessionData) {
+  if (!session) {
+    session = await getSession(cookie);
+  }
 
   if (session.has('jwt')) {
     return unsealData<Session>(session.get('jwt'), {
