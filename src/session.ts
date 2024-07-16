@@ -25,8 +25,14 @@ async function updateSession(request: Request, debug: boolean) {
     return session;
   }
 
+  if (request.headers.has('x-auth-refresh')) {
+    const msg = 'Session is invalid, but already tried to refresh';
+    if (debug) console.log(msg);
+    throw new Error(msg)
+  }
+
   try {
-    if (debug) console.log('Session invalid. Attempting refresh', session.refreshToken);
+    if (debug) console.log(`Session invalid or expired. Attempting refresh: ${session.refreshToken}`);
 
     // If the session is invalid (i.e. the access token has expired) attempt to re-authenticate with the refresh token
     const { accessToken, refreshToken } = await workos.userManagement.authenticateWithRefreshToken({
@@ -34,7 +40,7 @@ async function updateSession(request: Request, debug: boolean) {
       refreshToken: session.refreshToken,
     });
 
-    if (debug) console.log('Refresh successful:', refreshToken);
+    if (debug) console.log(`Refresh successful: ${refreshToken}`);
 
     const newSession = {
       accessToken,
@@ -46,12 +52,25 @@ async function updateSession(request: Request, debug: boolean) {
     // Encrypt session with new access and refresh tokens
     const updatedSession = await getSession(request.headers.get('Cookie'));
     updatedSession.set('jwt', await encryptSession(newSession));
-    await commitSession(updatedSession);
 
+    const newHeaders = new Headers(request.headers);
+    newHeaders.append("Set-Cookie", await commitSession(updatedSession));
+    newHeaders.append("x-auth-refresh", "1");
+
+    if (request.method === "GET") {
+      throw redirect(request.url, { headers: newHeaders });
+    }
+
+    // For actions, return the new session.
+    // Redirect will be handled by loader after the action is complete.
     return newSession;
   } catch (e) {
-    if (debug) console.log('Failed to refresh. Deleting cookie and redirecting.', e);
+    // We caught a Response, meaning that it needs to get redirected by Remix, so throw it again
+    if (e instanceof Response) {
+      throw e;
+    }
 
+    if (debug) console.log('Failed to refresh. Deleting cookie and redirecting.');
     const cookieSession = await getSession(request.headers.get('Cookie'));
 
     throw redirect('/', {
