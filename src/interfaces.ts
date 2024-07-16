@@ -8,11 +8,13 @@ export interface Impersonator {
   email: string;
   reason: string | null;
 }
+
 export interface Session {
   accessToken: string;
   refreshToken: string;
   user: User;
   impersonator?: Impersonator;
+  headers: Record<string, string>;
 }
 
 export interface UserInfo {
@@ -23,7 +25,9 @@ export interface UserInfo {
   permissions?: string[];
   impersonator?: Impersonator;
   accessToken: string;
+  headers: Record<string, string>;
 }
+
 export interface NoUserInfo {
   user: null;
   sessionId?: undefined;

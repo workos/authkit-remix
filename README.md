@@ -78,13 +78,16 @@ import { Link, useLoaderData, json, Form } from '@remix-run/react';
 import { getSignInUrl, getSignUpUrl, withAuth, signOut } from '@workos-inc/authkit-remix';
 
 export async function loader({request}: LoaderFunctionArgs) {
-  // additional properties include: sessionId, organizationId, role, impersonator, accessToken
-  const {user} = await withAuth(request);
+  // Additional properties include: sessionId, organizationId, role, impersonator, accessToken, permissions
+  const { user, headers } = await withAuth(request);
 
   return json({
     signInUrl: await getSignInUrl(),
     signUpUrl: await getSignUpUrl(),
     user,
+  }, {
+    // This is important as in the case of authenticating via the refresh token we need to update the session cookie
+    headers,
   });
 }
 
@@ -138,7 +141,7 @@ import type { LoaderFunctionArgs, json } from '@remix-run/node';
 import { withAuth } from '@workos-inc/authkit-remix';
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { accessToken } = await withAuth(request);
+  const { accessToken, headers } = await withAuth(request);
 
   if (!accesstoken) {
     // Not signed in
@@ -150,9 +153,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   });
 
-  return json({
-    data: serviceData,
-  });
+  return json(
+    {
+      data: serviceData,
+    },
+    {
+      headers,
+    },
+  );
 }
 ```
 
@@ -164,14 +172,19 @@ To enable debug logs, pass in the debug flag when using `withAuth`.
 import { withAuth, getSignInUrl, getSignUpUrl } from '@workos-inc/authkit-remix';
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { user } = await withAuth(request, {
+  const { user, headers } = await withAuth(request, {
     debug: true,
   });
 
-  return json({
-    signInUrl: await getSignInUrl(),
-    signUpUrl: await getSignUpUrl(),
-    user,
-  });
+  return json(
+    {
+      signInUrl: await getSignInUrl(),
+      signUpUrl: await getSignUpUrl(),
+      user,
+    },
+    {
+      headers,
+    },
+  );
 }
 ```

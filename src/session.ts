@@ -41,12 +41,16 @@ async function updateSession(request: Request, debug: boolean) {
       refreshToken,
       user: session.user,
       impersonator: session.impersonator,
+      headers: {},
     };
 
     // Encrypt session with new access and refresh tokens
     const updatedSession = await getSession(request.headers.get('Cookie'));
     updatedSession.set('jwt', await encryptSession(newSession));
-    await commitSession(updatedSession);
+
+    newSession.headers = {
+      'Set-Cookie': await commitSession(updatedSession),
+    };
 
     return newSession;
   } catch (e) {
@@ -82,7 +86,10 @@ async function withAuth(
   },
 ): Promise<UserInfo>;
 
-async function withAuth(request: Request, { ensureSignedIn = false, debug = false } = {}) {
+async function withAuth(
+  request: Request,
+  { ensureSignedIn = false, debug = false } = {},
+): Promise<UserInfo | NoUserInfo> {
   const session = await updateSession(request, debug);
 
   if (!session) {
@@ -109,6 +116,7 @@ async function withAuth(request: Request, { ensureSignedIn = false, debug = fals
     permissions,
     impersonator: session.impersonator,
     accessToken: session.accessToken,
+    headers: session.headers,
   };
 }
 
