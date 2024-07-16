@@ -1,6 +1,6 @@
 {
   "name": "@workos-inc/authkit-remix",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Authentication and session helpers for using WorkOS & AuthKit with Remix",
   "sideEffects": false,
   "type": "commonjs",
@@ -26,7 +26,7 @@
     "jose": "^5.2.3"
   },
   "peerDependencies": {
-    "@remix-run/node": "^2.7.2",
+    "@remix-run/node": "^2.4.1",
     "react": "^18.2.0"
   },
   "devDependencies": {
