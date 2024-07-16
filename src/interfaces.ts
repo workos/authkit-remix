@@ -17,25 +17,6 @@ export interface Session {
   headers: Record<string, string>;
 }
 
-export interface UserInfo {
-  user: User;
-  sessionId: string;
-  organizationId?: string;
-  role?: string;
-  permissions?: string[];
-  impersonator?: Impersonator;
-  accessToken: string;
-  headers: Record<string, string>;
-}
-
-export interface NoUserInfo {
-  user: null;
-  sessionId?: undefined;
-  organizationId?: undefined;
-  role?: undefined;
-  impersonator?: undefined;
-}
-
 export interface AccessToken {
   sid: string;
   org_id?: string;

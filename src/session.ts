@@ -1,6 +1,6 @@
-import { redirect } from '@remix-run/node';
+import { json, redirect } from '@remix-run/node';
 import { WORKOS_CLIENT_ID, WORKOS_COOKIE_PASSWORD } from './env-variables.js';
-import { AccessToken, NoUserInfo, Session, UserInfo } from './interfaces.js';
+import { AccessToken, Session } from './interfaces.js';
 import { getSession, destroySession, commitSession } from './cookie.js';
 import { getAuthorizationUrl } from './get-authorization-url.js';
 import { workos } from './workos.js';
@@ -72,24 +72,18 @@ async function encryptSession(session: Session) {
 
 async function withAuth(
   request: Request,
-  options?: {
-    ensureSignedIn?: false;
-    debug?: boolean;
-  },
-): Promise<UserInfo | NoUserInfo>;
-
-async function withAuth(
-  request: Request,
   options: {
-    ensureSignedIn?: true;
+    ensureSignedIn?: boolean;
     debug?: boolean;
+    data?: object;
+    headers?: Record<string, string>;
   },
-): Promise<UserInfo>;
+): Promise<Response>;
 
 async function withAuth(
   request: Request,
-  { ensureSignedIn = false, debug = false } = {},
-): Promise<UserInfo | NoUserInfo> {
+  { ensureSignedIn = false, debug = false, data = {}, headers = {} } = {},
+): Promise<Response> {
   const session = await updateSession(request, debug);
 
   if (!session) {
@@ -103,27 +97,44 @@ async function withAuth(
         },
       });
     }
-    return { user: null };
+
+    return json(
+      {
+        user: null,
+        ...data,
+      },
+      {
+        headers,
+      },
+    );
   }
 
-  const { sid: sessionId, org_id: organizationId, role, permissions } = decodeJwt<AccessToken>(session.accessToken);
+  const { sessionId, organizationId, role, permissions } = getClaimsFromAccessToken(session.accessToken);
 
-  return {
-    sessionId,
-    user: session.user,
-    organizationId,
-    role,
-    permissions,
-    impersonator: session.impersonator,
-    accessToken: session.accessToken,
-    headers: session.headers,
-  };
+  return json(
+    {
+      sessionId,
+      user: session.user,
+      organizationId,
+      role,
+      permissions,
+      impersonator: session.impersonator,
+      accessToken: session.accessToken,
+      ...data,
+    },
+    {
+      headers: {
+        ...headers,
+        ...session.headers,
+      },
+    },
+  );
 }
 
 async function terminateSession(request: Request) {
-  const { sessionId } = await withAuth(request);
-
   const cookieSession = await getSession(request.headers.get('Cookie'));
+
+  const { sessionId } = getClaimsFromAccessToken(cookieSession.get('accessToken'));
 
   const headers = {
     'Set-Cookie': await destroySession(cookieSession),
@@ -137,6 +148,17 @@ async function terminateSession(request: Request) {
   return redirect('/', {
     headers,
   });
+}
+
+function getClaimsFromAccessToken(accessToken: string) {
+  const { sid: sessionId, org_id: organizationId, role, permissions } = decodeJwt<AccessToken>(accessToken);
+
+  return {
+    sessionId,
+    organizationId,
+    role,
+    permissions,
+  };
 }
 
 async function getSessionFromCookie(cookie: string | null) {

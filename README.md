@@ -40,7 +40,7 @@ To use the `signOut` method, you'll need to set your app's homepage in your Work
 Certain environment variables are optional and can be used to debug or configure cookie settings.
 
 ```sh
-WORKOS_COOKIE_MAX_AGE='600' # maximum age of the cookie in seconds. Defaults to 31 days
+WORKOS_COOKIE_MAX_AGE='600' # maximum age of the cookie in seconds. Defaults to 400 days
 WORKOS_API_HOSTNAME='api.workos.com' # base WorkOS API URL
 WORKOS_API_HTTPS=true # whether to use HTTPS in API calls
 WORKOS_API_PORT=5173 # port to use for API calls
@@ -58,7 +58,7 @@ import { authLoader } from '@workos-inc/authkit-remix';
 export const loader = authLoader();
 ```
 
-Make sure this route matches the `WORKOS_REDIRECT_URI` variable and the configured redirect URI in your WorkOS dashboard. For instance if your redirect URI is `http://localhost:5173/callback` then you'd put the above code in `/app/routes/callback.ts`.
+Make sure this route matches the `WORKOS_REDIRECT_URI` variable and the configured redirect URI in your WorkOS dashboard. For instance if your redirect URI is `http://localhost:2884/callback` then you'd put the above code in `/app/routes/callback.ts`.
 
 You can also control the pathname the user will be sent to after signing-in by passing a `returnPathname` option to `authLoader` like so:
 
@@ -77,17 +77,18 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node';
 import { Link, useLoaderData, json, Form } from '@remix-run/react';
 import { getSignInUrl, getSignUpUrl, withAuth, signOut } from '@workos-inc/authkit-remix';
 
-export async function loader({request}: LoaderFunctionArgs) {
-  // Additional properties include: sessionId, organizationId, role, impersonator, accessToken, permissions
-  const { user, headers } = await withAuth(request);
-
-  return json({
-    signInUrl: await getSignInUrl(),
-    signUpUrl: await getSignUpUrl(),
-    user,
-  }, {
-    // This is important as in the case of authenticating via the refresh token we need to update the session cookie
-    headers,
+export async function loader({ request }: LoaderFunctionArgs) {
+  // Returns the user, sessionId, organizationId, role, permissions, impersonator and accessToken
+  // Additionally, anything in the 'data' object will also be returned
+  return await withAuth(request, {
+    data: {
+      signInUrl: await getSignInUrl(),
+      signUpUrl: await getSignUpUrl(),
+    },
+    // Optional headers object
+    headers: {
+      'x-my-header': 'foo',
+    }
   });
 }
 
@@ -124,6 +125,10 @@ For pages where a signed-in user is mandatory, you can use the `ensureSignedIn` 
 
 ```jsx
 const { user } = await withAuth(request, { ensureSignedIn: true });
+
+export async function loader({ request }: LoaderFunctionArgs) {
+  return await withAuth(request, { ensureSignIn: true });
+}
 ```
 
 Enabling `ensureSignedIn` will redirect users to AuthKit if they attempt to access the page without being authenticated.
@@ -141,7 +146,9 @@ import type { LoaderFunctionArgs, json } from '@remix-run/node';
 import { withAuth } from '@workos-inc/authkit-remix';
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { accessToken, headers } = await withAuth(request);
+  const resp = await withAuth(request);
+
+  const { accessToken } = await resp.json();
 
   if (!accesstoken) {
     // Not signed in
@@ -153,14 +160,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   });
 
-  return json(
-    {
-      data: serviceData,
-    },
-    {
-      headers,
-    },
-  );
+  return json({
+    data: serviceData,
+  });
 }
 ```
 
@@ -172,19 +174,8 @@ To enable debug logs, pass in the debug flag when using `withAuth`.
 import { withAuth, getSignInUrl, getSignUpUrl } from '@workos-inc/authkit-remix';
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { user, headers } = await withAuth(request, {
+  return await withAuth(request, {
     debug: true,
   });
-
-  return json(
-    {
-      signInUrl: await getSignInUrl(),
-      signUpUrl: await getSignUpUrl(),
-      user,
-    },
-    {
-      headers,
-    },
-  );
 }
 ```
