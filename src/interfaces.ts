@@ -34,12 +34,22 @@ export interface AuthKitLoaderOptions {
   debug?: boolean;
 }
 
-export interface AuthData {
-  user: User | null;
-  sessionId?: string;
-  accessToken?: string;
-  organizationId?: string;
-  role?: string;
-  permissions?: string[];
-  impersonator?: Impersonator;
+export interface AuthorizedData {
+  user: User;
+  sessionId: string;
+  accessToken: string;
+  organizationId: string | null;
+  role: string | null;
+  permissions: string[];
+  impersonator: Impersonator | null;
+}
+
+export interface UnauthorizedData {
+  user: null;
+  sessionId: null;
+  accessToken: null;
+  organizationId: null;
+  role: null;
+  permissions: null;
+  impersonator: null;
 }

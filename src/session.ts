@@ -1,14 +1,13 @@
-import { json, LoaderFunctionArgs, redirect, SessionData } from '@remix-run/node';
+import { json, redirect } from '@remix-run/node';
+import type { LoaderFunctionArgs, SessionData, TypedResponse } from '@remix-run/node';
 import { WORKOS_CLIENT_ID, WORKOS_COOKIE_PASSWORD } from './env-variables.js';
-import { AccessToken, AuthData, AuthKitLoaderOptions, Session } from './interfaces.js';
+import type { AccessToken, AuthorizedData, UnauthorizedData, AuthKitLoaderOptions, Session } from './interfaces.js';
 import { getSession, destroySession, commitSession } from './cookie.js';
 import { getAuthorizationUrl } from './get-authorization-url.js';
 import { workos } from './workos.js';
 
 import { sealData, unsealData } from 'iron-session';
 import { jwtVerify, createRemoteJWKSet, decodeJwt } from 'jose';
-
-type AuthLoader = (loaderArgs: LoaderFunctionArgs & { auth: AuthData }) => Promise<Response>;
 
 const JWKS = createRemoteJWKSet(new URL(workos.userManagement.getJwksUrl(WORKOS_CLIENT_ID)));
 
@@ -72,9 +71,40 @@ async function encryptSession(session: Session) {
   return sealData(session, { password: WORKOS_COOKIE_PASSWORD });
 }
 
-async function authkitLoader(
+type LoaderValue<Data> = Response | TypedResponse<Data> | NonNullable<Data> | null;
+type LoaderReturnValue<Data> = Promise<LoaderValue<Data>> | LoaderValue<Data>;
+
+type AuthLoader<Data> = (
+  args: LoaderFunctionArgs & { auth: AuthorizedData | UnauthorizedData },
+) => LoaderReturnValue<Data>;
+
+type AuthorizedAuthLoader<Data> = (args: LoaderFunctionArgs & { auth: AuthorizedData }) => LoaderReturnValue<Data>;
+
+export async function authkitLoader(
   loaderArgs: LoaderFunctionArgs,
-  loaderOrOptions?: AuthLoader | AuthKitLoaderOptions,
+  options: AuthKitLoaderOptions & { ensureSignedIn: true },
+): Promise<TypedResponse<AuthorizedData>>;
+
+export async function authkitLoader(
+  loaderArgs: LoaderFunctionArgs,
+  options?: AuthKitLoaderOptions,
+): Promise<TypedResponse<AuthorizedData | UnauthorizedData>>;
+
+export async function authkitLoader<Data = unknown>(
+  loaderArgs: LoaderFunctionArgs,
+  loader: AuthorizedAuthLoader<Data>,
+  options: AuthKitLoaderOptions & { ensureSignedIn: true },
+): Promise<TypedResponse<Data & AuthorizedData>>;
+
+export async function authkitLoader<Data = unknown>(
+  loaderArgs: LoaderFunctionArgs,
+  loader: AuthLoader<Data>,
+  options?: AuthKitLoaderOptions,
+): Promise<TypedResponse<Data & (AuthorizedData | UnauthorizedData)>>;
+
+export async function authkitLoader<Data = unknown>(
+  loaderArgs: LoaderFunctionArgs,
+  loaderOrOptions?: AuthLoader<Data> | AuthorizedAuthLoader<Data> | AuthKitLoaderOptions,
   options: AuthKitLoaderOptions = {},
 ) {
   const loader = typeof loaderOrOptions === 'function' ? loaderOrOptions : undefined;
@@ -95,25 +125,38 @@ async function authkitLoader(
       });
     }
 
+    const auth: UnauthorizedData = {
+      user: null,
+      accessToken: null,
+      impersonator: null,
+      organizationId: null,
+      permissions: null,
+      role: null,
+      sessionId: null,
+    };
+
     if (loader) {
-      return await loader({ ...loaderArgs, auth: { user: null } });
+      return await loader({ ...loaderArgs, auth: auth as unknown as AuthorizedData });
     }
 
-    return json({
-      user: null,
-    });
+    return json(auth);
   }
 
-  const { sessionId, organizationId, role, permissions } = getClaimsFromAccessToken(session.accessToken);
+  const {
+    sessionId,
+    organizationId = null,
+    role = null,
+    permissions = [],
+  } = getClaimsFromAccessToken(session.accessToken);
 
-  const authData = {
+  const authData: AuthorizedData = {
     user: session.user,
     sessionId,
     accessToken: session.accessToken,
     organizationId,
     role,
     permissions,
-    impersonator: session.impersonator,
+    impersonator: session.impersonator ?? null,
   };
 
   if (!loader) {
@@ -125,7 +168,7 @@ async function authkitLoader(
   }
 
   // If there's a custom loader, get the resulting data and return it with our auth data plus session cookie header
-  const loaderResult: Response | object = await loader({ ...loaderArgs, auth: authData });
+  const loaderResult = await loader({ ...loaderArgs, auth: authData });
 
   if (loaderResult instanceof Response) {
     // If the result is a redirect, return it unedited
@@ -205,4 +248,4 @@ async function verifyAccessToken(accessToken: string) {
   }
 }
 
-export { encryptSession, terminateSession, authkitLoader };
+export { encryptSession, terminateSession };
