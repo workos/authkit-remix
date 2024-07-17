@@ -9,9 +9,7 @@ async function getAuthorizationUrl(options: GetAuthURLOptions = {}) {
     provider: 'authkit',
     clientId: WORKOS_CLIENT_ID,
     redirectUri: WORKOS_REDIRECT_URI,
-    state: returnPathname
-      ? btoa(JSON.stringify({ returnPathname }))
-      : undefined,
+    state: returnPathname ? btoa(JSON.stringify({ returnPathname })) : undefined,
     screenHint,
   });
 }

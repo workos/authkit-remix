@@ -13,17 +13,14 @@ export function authLoader(options: HandleAuthOptions = {}) {
 
     const code = url.searchParams.get('code');
     const state = url.searchParams.get('state');
-    const returnPathname = state
-      ? JSON.parse(atob(state)).returnPathname
-      : null;
+    const returnPathname = state ? JSON.parse(atob(state)).returnPathname : null;
 
     if (code) {
       try {
-        const { accessToken, refreshToken, user, impersonator } =
-          await workos.userManagement.authenticateWithCode({
-            clientId: WORKOS_CLIENT_ID,
-            code,
-          });
+        const { accessToken, refreshToken, user, impersonator } = await workos.userManagement.authenticateWithCode({
+          clientId: WORKOS_CLIENT_ID,
+          code,
+        });
 
         // Clean up params
         url.searchParams.delete('code');
@@ -67,11 +64,10 @@ export function authLoader(options: HandleAuthOptions = {}) {
         {
           error: {
             message: 'Something went wrong',
-            description:
-              'Couldn’t sign in. If you are not sure what happened, please contact your organization admin.',
+            description: 'Couldn’t sign in. If you are not sure what happened, please contact your organization admin.',
           },
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
   };
