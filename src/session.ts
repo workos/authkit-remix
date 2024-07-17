@@ -135,11 +135,7 @@ export async function authkitLoader<Data = unknown>(
       sessionId: null,
     };
 
-    if (loader) {
-      return await loader({ ...loaderArgs, auth: auth as unknown as AuthorizedData });
-    }
-
-    return json(auth);
+    return await handleAuthLoader(loader, loaderArgs, auth);
   }
 
   const {
@@ -149,7 +145,7 @@ export async function authkitLoader<Data = unknown>(
     permissions = [],
   } = getClaimsFromAccessToken(session.accessToken);
 
-  const authData: AuthorizedData = {
+  const auth: AuthorizedData = {
     user: session.user,
     sessionId,
     accessToken: session.accessToken,
@@ -159,16 +155,22 @@ export async function authkitLoader<Data = unknown>(
     impersonator: session.impersonator ?? null,
   };
 
+  return await handleAuthLoader(loader, loaderArgs, auth, session);
+}
+
+async function handleAuthLoader(
+  loader: AuthLoader<unknown> | AuthorizedAuthLoader<unknown> | undefined,
+  args: LoaderFunctionArgs,
+  auth: AuthorizedData | UnauthorizedData,
+  session?: Session,
+) {
   if (!loader) {
-    return json(authData, {
-      headers: {
-        ...session.headers,
-      },
-    });
+    return json(auth, session ? { headers: { ...session.headers } } : undefined);
   }
 
-  // If there's a custom loader, get the resulting data and return it with our auth data plus session cookie header
-  const loaderResult = await loader({ ...loaderArgs, auth: authData });
+  // If there's a custom loader, get the resulting data and return it with our
+  // auth data plus session cookie header
+  const loaderResult = await loader({ ...args, auth: auth as AuthorizedData });
 
   if (loaderResult instanceof Response) {
     // If the result is a redirect, return it unedited
@@ -179,15 +181,18 @@ export async function authkitLoader<Data = unknown>(
     const newResponse = new Response(loaderResult.body, loaderResult);
     const data = await newResponse.json();
 
-    // Set the content type in case the user returned a Response instead of the json helper method
-    newResponse.headers.set('Content-Type', 'application/json');
-    newResponse.headers.append('Set-Cookie', (session.headers as Record<string, string>)['Set-Cookie']);
+    // Set the content type in case the user returned a Response instead of the
+    // json helper method
+    newResponse.headers.set('Content-Type', 'application/json; charset=utf-8');
+    if (session) {
+      newResponse.headers.append('Set-Cookie', session.headers['Set-Cookie']);
+    }
 
-    return json({ ...(data || {}), ...authData }, newResponse);
+    return json({ ...data, ...auth }, newResponse);
   }
 
   // If the loader returns a non-Response, assume it's a data object
-  return json({ ...loaderResult, ...authData }, { headers: { ...session.headers } });
+  return json({ ...loaderResult, ...auth }, session ? { headers: { ...session.headers } } : undefined);
 }
 
 async function terminateSession(request: Request) {
