@@ -36,6 +36,7 @@ export function authLoader(options: HandleAuthOptions = {}) {
           refreshToken,
           user,
           impersonator,
+          headers: {},
         });
 
         const session = await getSession(cookieName);

@@ -1,6 +1,7 @@
-import { redirect } from '@remix-run/node';
+import { json, redirect } from '@remix-run/node';
+import type { LoaderFunctionArgs, SessionData, TypedResponse } from '@remix-run/node';
 import { WORKOS_CLIENT_ID, WORKOS_COOKIE_PASSWORD } from './env-variables.js';
-import { AccessToken, NoUserInfo, Session, UserInfo } from './interfaces.js';
+import type { AccessToken, AuthorizedData, UnauthorizedData, AuthKitLoaderOptions, Session } from './interfaces.js';
 import { getSession, destroySession, commitSession } from './cookie.js';
 import { getAuthorizationUrl } from './get-authorization-url.js';
 import { workos } from './workos.js';
@@ -11,7 +12,7 @@ import { jwtVerify, createRemoteJWKSet, decodeJwt } from 'jose';
 const JWKS = createRemoteJWKSet(new URL(workos.userManagement.getJwksUrl(WORKOS_CLIENT_ID)));
 
 async function updateSession(request: Request, debug: boolean) {
-  const session = await getSessionFromCookie(request.headers.get('Cookie'));
+  const session = await getSessionFromCookie(request.headers.get('Cookie') as string);
 
   // If no session, just continue
   if (!session) {
@@ -41,12 +42,16 @@ async function updateSession(request: Request, debug: boolean) {
       refreshToken,
       user: session.user,
       impersonator: session.impersonator,
+      headers: {},
     };
 
     // Encrypt session with new access and refresh tokens
     const updatedSession = await getSession(request.headers.get('Cookie'));
     updatedSession.set('jwt', await encryptSession(newSession));
-    await commitSession(updatedSession);
+
+    newSession.headers = {
+      'Set-Cookie': await commitSession(updatedSession),
+    };
 
     return newSession;
   } catch (e) {
@@ -66,23 +71,46 @@ async function encryptSession(session: Session) {
   return sealData(session, { password: WORKOS_COOKIE_PASSWORD });
 }
 
-async function withAuth(
-  request: Request,
-  options?: {
-    ensureSignedIn?: false;
-    debug?: boolean;
-  },
-): Promise<UserInfo | NoUserInfo>;
+type LoaderValue<Data> = Response | TypedResponse<Data> | NonNullable<Data> | null;
+type LoaderReturnValue<Data> = Promise<LoaderValue<Data>> | LoaderValue<Data>;
 
-async function withAuth(
-  request: Request,
-  options: {
-    ensureSignedIn?: true;
-    debug?: boolean;
-  },
-): Promise<UserInfo>;
+type AuthLoader<Data> = (
+  args: LoaderFunctionArgs & { auth: AuthorizedData | UnauthorizedData },
+) => LoaderReturnValue<Data>;
 
-async function withAuth(request: Request, { ensureSignedIn = false, debug = false } = {}) {
+type AuthorizedAuthLoader<Data> = (args: LoaderFunctionArgs & { auth: AuthorizedData }) => LoaderReturnValue<Data>;
+
+async function authkitLoader(
+  loaderArgs: LoaderFunctionArgs,
+  options: AuthKitLoaderOptions & { ensureSignedIn: true },
+): Promise<TypedResponse<AuthorizedData>>;
+
+async function authkitLoader(
+  loaderArgs: LoaderFunctionArgs,
+  options?: AuthKitLoaderOptions,
+): Promise<TypedResponse<AuthorizedData | UnauthorizedData>>;
+
+async function authkitLoader<Data = unknown>(
+  loaderArgs: LoaderFunctionArgs,
+  loader: AuthorizedAuthLoader<Data>,
+  options: AuthKitLoaderOptions & { ensureSignedIn: true },
+): Promise<TypedResponse<Data & AuthorizedData>>;
+
+async function authkitLoader<Data = unknown>(
+  loaderArgs: LoaderFunctionArgs,
+  loader: AuthLoader<Data>,
+  options?: AuthKitLoaderOptions,
+): Promise<TypedResponse<Data & (AuthorizedData | UnauthorizedData)>>;
+
+async function authkitLoader<Data = unknown>(
+  loaderArgs: LoaderFunctionArgs,
+  loaderOrOptions?: AuthLoader<Data> | AuthorizedAuthLoader<Data> | AuthKitLoaderOptions,
+  options: AuthKitLoaderOptions = {},
+) {
+  const loader = typeof loaderOrOptions === 'function' ? loaderOrOptions : undefined;
+  const { ensureSignedIn = false, debug = false } = typeof loaderOrOptions === 'object' ? loaderOrOptions : options;
+
+  const { request } = loaderArgs;
   const session = await updateSession(request, debug);
 
   if (!session) {
@@ -96,29 +124,88 @@ async function withAuth(request: Request, { ensureSignedIn = false, debug = fals
         },
       });
     }
-    return { user: null };
+
+    const auth: UnauthorizedData = {
+      user: null,
+      accessToken: null,
+      impersonator: null,
+      organizationId: null,
+      permissions: null,
+      role: null,
+      sessionId: null,
+    };
+
+    return await handleAuthLoader(loader, loaderArgs, auth);
   }
 
-  const { sid: sessionId, org_id: organizationId, role, permissions } = decodeJwt<AccessToken>(session.accessToken);
-
-  return {
+  const {
     sessionId,
+    organizationId = null,
+    role = null,
+    permissions = [],
+  } = getClaimsFromAccessToken(session.accessToken);
+
+  const auth: AuthorizedData = {
     user: session.user,
+    sessionId,
+    accessToken: session.accessToken,
     organizationId,
     role,
     permissions,
-    impersonator: session.impersonator,
-    accessToken: session.accessToken,
+    impersonator: session.impersonator ?? null,
   };
+
+  return await handleAuthLoader(loader, loaderArgs, auth, session);
+}
+
+async function handleAuthLoader(
+  loader: AuthLoader<unknown> | AuthorizedAuthLoader<unknown> | undefined,
+  args: LoaderFunctionArgs,
+  auth: AuthorizedData | UnauthorizedData,
+  session?: Session,
+) {
+  if (!loader) {
+    return json(auth, session ? { headers: { ...session.headers } } : undefined);
+  }
+
+  // If there's a custom loader, get the resulting data and return it with our
+  // auth data plus session cookie header
+  const loaderResult = await loader({ ...args, auth: auth as AuthorizedData });
+
+  if (loaderResult instanceof Response) {
+    // If the result is a redirect, return it unedited
+    if (loaderResult.status >= 300 && loaderResult.status < 400) {
+      return loaderResult;
+    }
+
+    const newResponse = new Response(loaderResult.body, loaderResult);
+    const data = await newResponse.json();
+
+    // Set the content type in case the user returned a Response instead of the
+    // json helper method
+    newResponse.headers.set('Content-Type', 'application/json; charset=utf-8');
+    if (session) {
+      newResponse.headers.append('Set-Cookie', session.headers['Set-Cookie']);
+    }
+
+    return json({ ...data, ...auth }, newResponse);
+  }
+
+  // If the loader returns a non-Response, assume it's a data object
+  return json({ ...loaderResult, ...auth }, session ? { headers: { ...session.headers } } : undefined);
 }
 
 async function terminateSession(request: Request) {
-  const { sessionId } = await withAuth(request);
+  const encryptedSession = await getSession(request.headers.get('Cookie'));
+  const { accessToken } = (await getSessionFromCookie(
+    request.headers.get('Cookie') as string,
+    encryptedSession,
+  )) as Session;
 
-  const cookieSession = await getSession(request.headers.get('Cookie'));
+  const { sessionId } = getClaimsFromAccessToken(accessToken);
 
   const headers = {
-    'Set-Cookie': await destroySession(cookieSession),
+    'Set-Cookie': await destroySession(encryptedSession),
   };
 
   if (sessionId) {
@@ -126,13 +213,27 @@ async function terminateSession(request: Request) {
       headers,
     });
   }
+
   return redirect('/', {
     headers,
   });
 }
 
-async function getSessionFromCookie(cookie: string | null) {
-  const session = await getSession(cookie);
+function getClaimsFromAccessToken(accessToken: string) {
+  const { sid: sessionId, org_id: organizationId, role, permissions } = decodeJwt<AccessToken>(accessToken);
+
+  return {
+    sessionId,
+    organizationId,
+    role,
+    permissions,
+  };
+}
+
+async function getSessionFromCookie(cookie: string, session?: SessionData) {
+  if (!session) {
+    session = await getSession(cookie);
+  }
 
   if (session.has('jwt')) {
     return unsealData<Session>(session.get('jwt'), {
@@ -152,4 +253,4 @@ async function verifyAccessToken(accessToken: string) {
   }
 }
 
-export { encryptSession, withAuth, terminateSession };
+export { encryptSession, terminateSession, authkitLoader };
