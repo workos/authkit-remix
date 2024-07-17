@@ -29,12 +29,17 @@ export interface GetAuthURLOptions {
   returnPathname?: string;
 }
 
-export interface AuthkitMiddlewareAuth {
-  enabled: boolean;
-  unauthenticatedPaths: string[];
+export interface AuthKitLoaderOptions {
+  ensureSignedIn?: boolean;
+  debug?: boolean;
 }
 
-export interface AuthkitMiddlewareOptions {
-  debug?: boolean;
-  middlewareAuth?: AuthkitMiddlewareAuth;
+export interface AuthData {
+  user: User | null;
+  sessionId?: string;
+  accessToken?: string;
+  organizationId?: string;
+  role?: string;
+  permissions?: string[];
+  impersonator?: Impersonator;
 }

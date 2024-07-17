@@ -50,7 +50,7 @@ WORKOS_API_PORT=5173 # port to use for API calls
 
 ### Callback route
 
-WorkOS requires that you have a callback URL to redirect users back to after they've authenticated. In your Remix app, [create a new route](https://remix.run/docs/en/main/discussion/routes) and add the following:
+AuthKit requires that you have a callback URL to redirect users back to after they've authenticated. In your Remix app, [create a new route](https://remix.run/docs/en/main/discussion/routes) and add the following:
 
 ```ts
 import { authLoader } from '@workos-inc/authkit-remix';
@@ -68,34 +68,38 @@ export const loader = authLoader({ returnPathname: '/dashboard' });
 
 ## Usage
 
-### Get the current user
+### Access authentication data in your Remix application
 
-For pages where you want to display a signed-in and signed-out view, use `withAuth` to retrieve the user profile from WorkOS.
+Use `authkitLoader` to configure AuthKit for your Remix application routes.
+
+```jsx
+import type { LoaderFunction, LoaderFunctionArgs } from '@remix-run/node';
+import { authkitLoader } from '@workos-inc/authkit-remix';
+
+export const loader: LoaderFunction = (args: LoaderFunctionArgs) => authkitLoader(args);
+
+export function App() {
+  return (
+    <div>
+      <p>Welcome back {user?.firstName && `, ${user?.firstName}`}</p>
+    </div>
+  );
+}
+```
+
+For pages where you want to display a signed-in and signed-out view, use `authkitLoader` to retrieve the user profile from WorkOS. You can pass in additional data by providing a loader function directly to `authkitLoader`.
 
 ```jsx
 import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node';
 import { Link, useLoaderData, json, Form } from '@remix-run/react';
-import { getSignInUrl, getSignUpUrl, withAuth, signOut } from '@workos-inc/authkit-remix';
+import { getSignInUrl, getSignUpUrl, signOut, authkitLoader } from '@workos-inc/authkit-remix';
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  // Returns the user, sessionId, organizationId, role, permissions, impersonator and accessToken
-  // Additionally, anything in the 'data' object will also be returned
-  return await withAuth(
-    request,
-    {
-      data: {
-        signInUrl: await getSignInUrl(),
-        signUpUrl: await getSignUpUrl(),
-      },
-    },
-    {
-      // Optional ResponseInit object
-      headers: {
-        'x-my-header': 'foo',
-      },
-    },
-  );
-}
+export const loader: LoaderFunction = (args: LoaderFunctionArgs) => authkitLoader(args, async ({ request, auth }) => {
+  return json({
+    signInUrl: await getSignInUrl();
+    signUpUrl: await getSignUpUrl();
+  });
+});
 
 export async function action({ request }: ActionFunctionArgs) {
   return await signOut(request);
@@ -103,6 +107,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
 export default function HomePage() {
   // Retrieves the user from the session or returns `null` if no user is signed in
+  // Other supported values include sessionId, accessToken, organizationId, role, permissions and impersonator
   const { user, signInUrl, signUpUrl } = useLoaderData<typeof loader>();
 
   if (!user) {
@@ -129,11 +134,7 @@ export default function HomePage() {
 For pages where a signed-in user is mandatory, you can use the `ensureSignedIn` option:
 
 ```jsx
-const { user } = await withAuth(request, { ensureSignedIn: true });
-
-export async function loader({ request }: LoaderFunctionArgs) {
-  return await withAuth(request, { ensureSignIn: true });
-}
+export const loader: LoaderFunction = (args: LoaderFunctionArgs) => authkitLoader(args, { ensureSignedIn: true });
 ```
 
 Enabling `ensureSignedIn` will redirect users to AuthKit if they attempt to access the page without being authenticated.
@@ -150,37 +151,47 @@ Sometimes it is useful to obtain the access token directly, for instance to make
 import type { LoaderFunctionArgs, json } from '@remix-run/node';
 import { withAuth } from '@workos-inc/authkit-remix';
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  const resp = await withAuth(request);
+export const loader: LoaderFunction = (args: LoaderFunctionArgs) =>
+  authkitLoader(args, async ({ auth }) => {
+    const { accessToken } = auth;
 
-  const { accessToken } = await resp.json();
+    if (!accessToken) {
+      // Not signed in
+    }
 
-  if (!accesstoken) {
-    // Not signed in
-  }
+    const serviceData = await fetch('/api/path', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
 
-  const serviceData = await fetch('/api/path', {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    return json({
+      data: serviceData,
+    });
   });
-
-  return json({
-    data: serviceData,
-  });
-}
 ```
 
 ### Debugging
 
-To enable debug logs, pass in the debug flag when using `withAuth`.
+To enable debug logs, pass in the debug flag when using `authkitLoader`.
 
 ```js
-import { withAuth, getSignInUrl, getSignUpUrl } from '@workos-inc/authkit-remix';
+import { authkitLoader } from '@workos-inc/authkit-remix';
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  return await withAuth(request, {
-    debug: true,
-  });
-}
+export const loader: LoaderFunction = (args: LoaderFunctionArgs) => authkitLoader(args, { debug: true });
+```
+
+If providing a loader function, you can pass the options object as the third parameter
+
+```js
+import { authkitLoader } from '@workos-inc/authkit-remix';
+
+export const loader: LoaderFunction = (args: LoaderFunctionArgs) =>
+  authkitLoader(
+    args,
+    async ({ auth }) => {
+      return json({ foo: 'bar' });
+    },
+    { debug: true },
+  );
 ```

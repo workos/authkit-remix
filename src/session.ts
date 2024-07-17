@@ -1,12 +1,14 @@
-import { json, redirect, SessionData } from '@remix-run/node';
+import { json, LoaderFunctionArgs, redirect, SessionData } from '@remix-run/node';
 import { WORKOS_CLIENT_ID, WORKOS_COOKIE_PASSWORD } from './env-variables.js';
-import { AccessToken, Session } from './interfaces.js';
+import { AccessToken, AuthData, AuthKitLoaderOptions, Session } from './interfaces.js';
 import { getSession, destroySession, commitSession } from './cookie.js';
 import { getAuthorizationUrl } from './get-authorization-url.js';
 import { workos } from './workos.js';
 
 import { sealData, unsealData } from 'iron-session';
 import { jwtVerify, createRemoteJWKSet, decodeJwt } from 'jose';
+
+type AuthLoader = (loaderArgs: LoaderFunctionArgs & { auth: AuthData }) => Promise<Response>;
 
 const JWKS = createRemoteJWKSet(new URL(workos.userManagement.getJwksUrl(WORKOS_CLIENT_ID)));
 
@@ -70,19 +72,15 @@ async function encryptSession(session: Session) {
   return sealData(session, { password: WORKOS_COOKIE_PASSWORD });
 }
 
-async function withAuth(
-  request: Request,
-  {
-    ensureSignedIn = false,
-    debug = false,
-    data = {},
-  }: {
-    ensureSignedIn?: boolean;
-    debug?: boolean;
-    data?: object;
-  } = {},
-  init: ResponseInit = {},
-): Promise<Response> {
+async function authkitLoader(
+  loaderArgs: LoaderFunctionArgs,
+  loaderOrOptions?: AuthLoader | AuthKitLoaderOptions,
+  options: AuthKitLoaderOptions = {},
+) {
+  const loader = typeof loaderOrOptions === 'function' ? loaderOrOptions : undefined;
+  const { ensureSignedIn = false, debug = false } = typeof loaderOrOptions === 'object' ? loaderOrOptions : options;
+
+  const { request } = loaderArgs;
   const session = await updateSession(request, debug);
 
   if (!session) {
@@ -97,36 +95,56 @@ async function withAuth(
       });
     }
 
-    return json(
-      {
-        user: null,
-        ...data,
-      },
-      init,
-    );
+    if (loader) {
+      return await loader({ ...loaderArgs, auth: { user: null } });
+    }
+
+    return json({
+      user: null,
+    });
   }
 
   const { sessionId, organizationId, role, permissions } = getClaimsFromAccessToken(session.accessToken);
 
-  return json(
-    {
-      sessionId,
-      user: session.user,
-      organizationId,
-      role,
-      permissions,
-      impersonator: session.impersonator,
-      accessToken: session.accessToken,
-      ...data,
-    },
-    {
-      status: init.status ?? 200,
+  const authData = {
+    user: session.user,
+    sessionId,
+    accessToken: session.accessToken,
+    organizationId,
+    role,
+    permissions,
+    impersonator: session.impersonator,
+  };
+
+  if (!loader) {
+    return json(authData, {
       headers: {
-        ...init.headers,
         ...session.headers,
       },
-    },
-  );
+    });
+  }
+
+  // If there's a custom loader, get the resulting data and return it with our auth data plus session cookie header
+  const loaderResult: Response | object = await loader({ ...loaderArgs, auth: authData });
+
+  if (loaderResult instanceof Response) {
+    // If the result is a redirect, return it unedited
+    if (loaderResult.status >= 300 && loaderResult.status < 400) {
+      return loaderResult;
+    }
+
+    const newResponse = new Response(loaderResult.body, loaderResult);
+    const data = await newResponse.json();
+
+    // Set the content type in case the user returned a Response instead of the json helper method
+    newResponse.headers.set('Content-Type', 'application/json');
+    newResponse.headers.append('Set-Cookie', (session.headers as Record<string, string>)['Set-Cookie']);
+
+    return json({ ...(data || {}), ...authData }, newResponse);
+  }
+
+  // If the loader returns a non-Response, assume it's a data object
+  return json({ ...loaderResult, ...authData }, { headers: { ...session.headers } });
 }
 
 async function terminateSession(request: Request) {
@@ -187,4 +205,4 @@ async function verifyAccessToken(accessToken: string) {
   }
 }
 
-export { encryptSession, withAuth, terminateSession };
+export { encryptSession, terminateSession, authkitLoader };
