@@ -80,29 +80,29 @@ type AuthLoader<Data> = (
 
 type AuthorizedAuthLoader<Data> = (args: LoaderFunctionArgs & { auth: AuthorizedData }) => LoaderReturnValue<Data>;
 
-export async function authkitLoader(
+async function authkitLoader(
   loaderArgs: LoaderFunctionArgs,
   options: AuthKitLoaderOptions & { ensureSignedIn: true },
 ): Promise<TypedResponse<AuthorizedData>>;
 
-export async function authkitLoader(
+async function authkitLoader(
   loaderArgs: LoaderFunctionArgs,
   options?: AuthKitLoaderOptions,
 ): Promise<TypedResponse<AuthorizedData | UnauthorizedData>>;
 
-export async function authkitLoader<Data = unknown>(
+async function authkitLoader<Data = unknown>(
   loaderArgs: LoaderFunctionArgs,
   loader: AuthorizedAuthLoader<Data>,
   options: AuthKitLoaderOptions & { ensureSignedIn: true },
 ): Promise<TypedResponse<Data & AuthorizedData>>;
 
-export async function authkitLoader<Data = unknown>(
+async function authkitLoader<Data = unknown>(
   loaderArgs: LoaderFunctionArgs,
   loader: AuthLoader<Data>,
   options?: AuthKitLoaderOptions,
 ): Promise<TypedResponse<Data & (AuthorizedData | UnauthorizedData)>>;
 
-export async function authkitLoader<Data = unknown>(
+async function authkitLoader<Data = unknown>(
   loaderArgs: LoaderFunctionArgs,
   loaderOrOptions?: AuthLoader<Data> | AuthorizedAuthLoader<Data> | AuthKitLoaderOptions,
   options: AuthKitLoaderOptions = {},
@@ -253,4 +253,4 @@ async function verifyAccessToken(accessToken: string) {
   }
 }
 
-export { encryptSession, terminateSession };
+export { encryptSession, terminateSession, authkitLoader };
