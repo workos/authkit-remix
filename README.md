@@ -91,15 +91,17 @@ For pages where you want to display a signed-in and signed-out view, use `authki
 
 ```tsx
 import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node';
-import { Link, useLoaderData, json, Form } from '@remix-run/react';
+import { json } from '@remix-run/node';
+import { Form, Link, useLoaderData } from '@remix-run/react';
 import { getSignInUrl, getSignUpUrl, signOut, authkitLoader } from '@workos-inc/authkit-remix';
 
-export const loader = (args: LoaderFunctionArgs) => authkitLoader(args, async ({ request, auth }) => {
-  return json({
-    signInUrl: await getSignInUrl();
-    signUpUrl: await getSignUpUrl();
+export const loader = (args: LoaderFunctionArgs) =>
+  authkitLoader(args, async ({ request, auth }) => {
+    return json({
+      signInUrl: await getSignInUrl(),
+      signUpUrl: await getSignUpUrl(),
+    });
   });
-});
 
 export async function action({ request }: ActionFunctionArgs) {
   return await signOut(request);
@@ -148,7 +150,8 @@ Use the `signOut` method to sign out the current logged in user, end the session
 Sometimes it is useful to obtain the access token directly, for instance to make API requests to another service.
 
 ```tsx
-import type { LoaderFunctionArgs, json } from '@remix-run/node';
+import type { LoaderFunctionArgs } from '@remix-run/node';
+import { json } from '@remix-run/node';
 import { withAuth } from '@workos-inc/authkit-remix';
 
 export const loader = (args: LoaderFunctionArgs) =>
