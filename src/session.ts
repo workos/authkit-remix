@@ -115,7 +115,7 @@ async function authkitLoader<Data = unknown>(
 
   if (!session) {
     if (ensureSignedIn) {
-      const returnPathname = new URL(request.url).pathname;
+      const returnPathname = getReturnPathname(request.url);
       const cookieSession = await getSession(request.headers.get('Cookie'));
 
       throw redirect(await getAuthorizationUrl({ returnPathname }), {
@@ -251,6 +251,12 @@ async function verifyAccessToken(accessToken: string) {
   } catch (e) {
     return false;
   }
+}
+
+function getReturnPathname(url: string): string {
+  const newUrl = new URL(url);
+
+  return `${newUrl.pathname}${newUrl.searchParams.size > 0 ? '?' + newUrl.searchParams.toString() : ''}`;
 }
 
 export { encryptSession, terminateSession, authkitLoader };
