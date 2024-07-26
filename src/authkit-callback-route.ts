@@ -13,7 +13,7 @@ export function authLoader(options: HandleAuthOptions = {}) {
 
     const code = url.searchParams.get('code');
     const state = url.searchParams.get('state');
-    const returnPathname = state ? JSON.parse(atob(state)).returnPathname : null;
+    let returnPathname = state ? JSON.parse(atob(state)).returnPathname : null;
 
     if (code) {
       try {
@@ -27,7 +27,19 @@ export function authLoader(options: HandleAuthOptions = {}) {
         url.searchParams.delete('state');
 
         // Redirect to the requested path and store the session
-        url.pathname = returnPathname ?? returnPathnameOption;
+        returnPathname = returnPathname ?? returnPathnameOption;
+
+        // Extract the search params if they are present
+        if (returnPathname.includes('?')) {
+          const newUrl = new URL(returnPathname, 'https://example.com');
+          url.pathname = newUrl.pathname;
+
+          for (const [key, value] of newUrl.searchParams) {
+            url.searchParams.append(key, value);
+          }
+        } else {
+          url.pathname = returnPathname;
+        }
 
         // The refreshToken should never be accesible publicly, hence why we encrypt it in the cookie session
         // Alternatively you could persist the refresh token in a backend database
