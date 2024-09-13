@@ -42,6 +42,7 @@ export interface AuthorizedData {
   role: string | null;
   permissions: string[];
   impersonator: Impersonator | null;
+  sealedSession: string;
 }
 
 export interface UnauthorizedData {
@@ -52,4 +53,5 @@ export interface UnauthorizedData {
   role: null;
   permissions: null;
   impersonator: null;
+  sealedSession: null;
 }

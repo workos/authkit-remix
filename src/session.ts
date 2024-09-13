@@ -133,6 +133,7 @@ async function authkitLoader<Data = unknown>(
       permissions: null,
       role: null,
       sessionId: null,
+      sealedSession: null,
     };
 
     return await handleAuthLoader(loader, loaderArgs, auth);
@@ -145,6 +146,8 @@ async function authkitLoader<Data = unknown>(
     permissions = [],
   } = getClaimsFromAccessToken(session.accessToken);
 
+  const cookieSession = await getSession(request.headers.get('Cookie'));
+
   const auth: AuthorizedData = {
     user: session.user,
     sessionId,
@@ -153,6 +156,7 @@ async function authkitLoader<Data = unknown>(
     role,
     permissions,
     impersonator: session.impersonator ?? null,
+    sealedSession: cookieSession.get('jwt'),
   };
 
   return await handleAuthLoader(loader, loaderArgs, auth, session);
