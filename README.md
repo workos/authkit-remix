@@ -152,7 +152,7 @@ Sometimes it is useful to obtain the access token directly, for instance to make
 ```tsx
 import type { LoaderFunctionArgs } from '@remix-run/node';
 import { json } from '@remix-run/node';
-import { withAuth } from '@workos-inc/authkit-remix';
+import { authkitLoader } from '@workos-inc/authkit-remix';
 
 export const loader = (args: LoaderFunctionArgs) =>
   authkitLoader(args, async ({ auth }) => {
