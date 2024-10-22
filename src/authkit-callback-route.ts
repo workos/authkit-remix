@@ -13,7 +13,7 @@ export function authLoader(options: HandleAuthOptions = {}) {
 
     const code = url.searchParams.get('code');
     const state = url.searchParams.get('state');
-    let returnPathname = state && stage !== 'null' ? JSON.parse(atob(state)).returnPathname : null;
+    let returnPathname = state && state !== 'null' ? JSON.parse(atob(state)).returnPathname : null;
 
     if (code) {
       try {
