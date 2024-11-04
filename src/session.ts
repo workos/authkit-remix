@@ -27,7 +27,7 @@ async function updateSession(request: Request, debug: boolean) {
   }
 
   try {
-    if (debug) console.log('Session invalid. Attempting refresh', session.refreshToken);
+    if (debug) console.log(`Session invalid. Refreshing access token that ends in ${session.accessToken.slice(-10)}`);
 
     // If the session is invalid (i.e. the access token has expired) attempt to re-authenticate with the refresh token
     const { accessToken, refreshToken } = await workos.userManagement.authenticateWithRefreshToken({
@@ -35,7 +35,7 @@ async function updateSession(request: Request, debug: boolean) {
       refreshToken: session.refreshToken,
     });
 
-    if (debug) console.log('Refresh successful:', refreshToken);
+    if (debug) console.log(`Refresh successful. New access token ends in ${accessToken.slice(-10)}`);
 
     const newSession = {
       accessToken,
