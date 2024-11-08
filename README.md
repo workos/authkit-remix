@@ -74,11 +74,17 @@ Use `authkitLoader` to configure AuthKit for your Remix application routes.
 
 ```tsx
 import type { LoaderFunctionArgs } from '@remix-run/node';
+import { useLoaderData } from '@remix-run/react';
 import { authkitLoader } from '@workos-inc/authkit-remix';
 
 export const loader = (args: LoaderFunctionArgs) => authkitLoader(args);
 
 export function App() {
+
+  // Retrieves the user from the session or returns `null` if no user is signed in
+  // Other supported values include sessionId, accessToken, organizationId, role, permissions and impersonator
+  const { user, signInUrl, signUpUrl } = useLoaderData<typeof loader>();
+
   return (
     <div>
       <p>Welcome back {user?.firstName && `, ${user?.firstName}`}</p>
@@ -108,8 +114,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function HomePage() {
-  // Retrieves the user from the session or returns `null` if no user is signed in
-  // Other supported values include sessionId, accessToken, organizationId, role, permissions and impersonator
+
   const { user, signInUrl, signUpUrl } = useLoaderData<typeof loader>();
 
   if (!user) {
