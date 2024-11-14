@@ -1,4 +1,4 @@
-import { User } from '@workos-inc/node';
+import { OauthTokens, User } from '@workos-inc/node';
 
 export interface HandleAuthOptions {
   returnPathname?: string;
@@ -14,6 +14,7 @@ export interface Session {
   refreshToken: string;
   user: User;
   impersonator?: Impersonator;
+  oauthTokens?: OauthTokens;
   headers: Record<string, string>;
 }
 
@@ -42,6 +43,7 @@ export interface AuthorizedData {
   role: string | null;
   permissions: string[];
   impersonator: Impersonator | null;
+  oauthTokens: OauthTokens | null;
   sealedSession: string;
 }
 
@@ -53,5 +55,6 @@ export interface UnauthorizedData {
   role: null;
   permissions: null;
   impersonator: null;
+  oauthTokens: null;
   sealedSession: null;
 }
