@@ -17,7 +17,7 @@ export function authLoader(options: HandleAuthOptions = {}) {
 
     if (code) {
       try {
-        const { accessToken, refreshToken, user, impersonator } = await workos.userManagement.authenticateWithCode({
+        const { accessToken, refreshToken, user, impersonator, oauthTokens } = await workos.userManagement.authenticateWithCode({
           clientId: WORKOS_CLIENT_ID,
           code,
         });
@@ -41,13 +41,14 @@ export function authLoader(options: HandleAuthOptions = {}) {
           url.pathname = returnPathname;
         }
 
-        // The refreshToken should never be accesible publicly, hence why we encrypt it in the cookie session
+        // The refreshToken and oauthTokens should never be accesible publicly, hence why we encrypt it in the cookie session
         // Alternatively you could persist the refresh token in a backend database
         const encryptedSession = await encryptSession({
           accessToken,
           refreshToken,
           user,
           impersonator,
+          oauthTokens,
           headers: {},
         });
 
