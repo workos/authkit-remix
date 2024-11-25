@@ -80,9 +80,8 @@ import { authkitLoader } from '@workos-inc/authkit-remix';
 export const loader = (args: LoaderFunctionArgs) => authkitLoader(args);
 
 export function App() {
-
   // Retrieves the user from the session or returns `null` if no user is signed in
-  // Other supported values include sessionId, accessToken, organizationId, role, permissions, impersonator and oauthTokens
+  // Other supported values include `sessionId`, `accessToken`, `organizationId`, `role`, `permissions`, and `impersonator`.
   const { user, signInUrl, signUpUrl } = useLoaderData<typeof loader>();
 
   return (
@@ -114,7 +113,6 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function HomePage() {
-
   const { user, signInUrl, signUpUrl } = useLoaderData<typeof loader>();
 
   if (!user) {
