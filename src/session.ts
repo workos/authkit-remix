@@ -42,7 +42,6 @@ async function updateSession(request: Request, debug: boolean) {
       refreshToken,
       user: session.user,
       impersonator: session.impersonator,
-      oauthTokens: session.oauthTokens,
       headers: {},
     };
 
@@ -130,7 +129,6 @@ async function authkitLoader<Data = unknown>(
       user: null,
       accessToken: null,
       impersonator: null,
-      oauthTokens: null,
       organizationId: null,
       permissions: null,
       role: null,
@@ -158,7 +156,6 @@ async function authkitLoader<Data = unknown>(
     role,
     permissions,
     impersonator: session.impersonator ?? null,
-    oauthTokens: session.oauthTokens ?? null,
     sealedSession: cookieSession.get('jwt'),
   };
 

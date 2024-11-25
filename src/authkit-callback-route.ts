@@ -61,7 +61,6 @@ export function authLoader(
           refreshToken,
           user,
           impersonator,
-          oauthTokens,
           headers: {},
         });
 
