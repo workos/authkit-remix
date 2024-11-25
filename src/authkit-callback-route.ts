@@ -1,11 +1,23 @@
-import { HandleAuthOptions } from './interfaces.js';
+import { HandleAuthOptions, Impersonator } from './interfaces.js';
 import { WORKOS_CLIENT_ID } from './env-variables.js';
 import { workos } from './workos.js';
 import { encryptSession } from './session.js';
 import { getSession, commitSession, cookieName } from './cookie.js';
 import { redirect, json, LoaderFunctionArgs } from '@remix-run/node';
+import { OauthTokens, User } from '@workos-inc/node';
 
-export function authLoader(options: HandleAuthOptions = {}) {
+export interface AuthLoaderSuccessData {
+  accessToken: string;
+  impersonator: Impersonator | null;
+  oauthTokens: OauthTokens | null;
+  refreshToken: string;
+  user: User;
+}
+
+export function authLoader(
+  options: HandleAuthOptions = {},
+  onSuccess?: (data: AuthLoaderSuccessData) => void | Promise<void>,
+) {
   return async function loader({ request }: LoaderFunctionArgs) {
     const { returnPathname: returnPathnameOption = '/' } = options;
 
@@ -17,10 +29,11 @@ export function authLoader(options: HandleAuthOptions = {}) {
 
     if (code) {
       try {
-        const { accessToken, refreshToken, user, impersonator, oauthTokens } = await workos.userManagement.authenticateWithCode({
-          clientId: WORKOS_CLIENT_ID,
-          code,
-        });
+        const { accessToken, refreshToken, user, impersonator, oauthTokens } =
+          await workos.userManagement.authenticateWithCode({
+            clientId: WORKOS_CLIENT_ID,
+            code,
+          });
 
         // Clean up params
         url.searchParams.delete('code');
@@ -56,6 +69,16 @@ export function authLoader(options: HandleAuthOptions = {}) {
 
         session.set('jwt', encryptedSession);
         const cookie = await commitSession(session);
+
+        if (onSuccess) {
+          await onSuccess({
+            accessToken,
+            impersonator: impersonator ?? null,
+            oauthTokens: oauthTokens ?? null,
+            refreshToken,
+            user,
+          });
+        }
 
         return redirect(url.toString(), {
           headers: {
