@@ -1,25 +1,13 @@
-import { HandleAuthOptions, Impersonator } from './interfaces.js';
+import { HandleAuthOptions } from './interfaces.js';
 import { WORKOS_CLIENT_ID } from './env-variables.js';
 import { workos } from './workos.js';
 import { encryptSession } from './session.js';
 import { getSession, commitSession, cookieName } from './cookie.js';
 import { redirect, json, LoaderFunctionArgs } from '@remix-run/node';
-import { OauthTokens, User } from '@workos-inc/node';
 
-export interface AuthLoaderSuccessData {
-  accessToken: string;
-  impersonator: Impersonator | null;
-  oauthTokens: OauthTokens | null;
-  refreshToken: string;
-  user: User;
-}
-
-export function authLoader(
-  options: HandleAuthOptions = {},
-  onSuccess?: (data: AuthLoaderSuccessData) => void | Promise<void>,
-) {
+export function authLoader(options: HandleAuthOptions = {}) {
   return async function loader({ request }: LoaderFunctionArgs) {
-    const { returnPathname: returnPathnameOption = '/' } = options;
+    const { returnPathname: returnPathnameOption = '/', onSuccess } = options;
 
     const url = new URL(request.url);
 

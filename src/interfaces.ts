@@ -2,6 +2,15 @@ import { OauthTokens, User } from '@workos-inc/node';
 
 export interface HandleAuthOptions {
   returnPathname?: string;
+  onSuccess?: (data: AuthLoaderSuccessData) => void | Promise<void>;
+}
+
+export interface AuthLoaderSuccessData {
+  accessToken: string;
+  impersonator: Impersonator | null;
+  oauthTokens: OauthTokens | null;
+  refreshToken: string;
+  user: User;
 }
 
 export interface Impersonator {
