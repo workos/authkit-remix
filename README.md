@@ -82,7 +82,8 @@ export const loader = (args: LoaderFunctionArgs) => authkitLoader(args);
 export function App() {
 
   // Retrieves the user from the session or returns `null` if no user is signed in
-  // Other supported values include sessionId, accessToken, organizationId, role, permissions, impersonator and oauthTokens
+  // Other supported values include sessionId, accessToken, organizationId,
+  // role, permissions, entitlements, impersonator and oauthTokens
   const { user, signInUrl, signUpUrl } = useLoaderData<typeof loader>();
 
   return (

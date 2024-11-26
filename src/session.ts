@@ -133,6 +133,7 @@ async function authkitLoader<Data = unknown>(
       oauthTokens: null,
       organizationId: null,
       permissions: null,
+      entitlements: null,
       role: null,
       sessionId: null,
       sealedSession: null,
@@ -146,6 +147,7 @@ async function authkitLoader<Data = unknown>(
     organizationId = null,
     role = null,
     permissions = [],
+    entitlements = [],
   } = getClaimsFromAccessToken(session.accessToken);
 
   const cookieSession = await getSession(request.headers.get('Cookie'));
@@ -157,6 +159,7 @@ async function authkitLoader<Data = unknown>(
     organizationId,
     role,
     permissions,
+    entitlements,
     impersonator: session.impersonator ?? null,
     oauthTokens: session.oauthTokens ?? null,
     sealedSession: cookieSession.get('jwt'),
@@ -227,13 +230,20 @@ async function terminateSession(request: Request) {
 }
 
 function getClaimsFromAccessToken(accessToken: string) {
-  const { sid: sessionId, org_id: organizationId, role, permissions } = decodeJwt<AccessToken>(accessToken);
+  const {
+    sid: sessionId,
+    org_id: organizationId,
+    role,
+    permissions,
+    entitlements,
+  } = decodeJwt<AccessToken>(accessToken);
 
   return {
     sessionId,
     organizationId,
     role,
     permissions,
+    entitlements,
   };
 }
 
