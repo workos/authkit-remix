@@ -54,8 +54,9 @@ export function authLoader(
           url.pathname = returnPathname;
         }
 
-        // The refreshToken and oauthTokens should never be accesible publicly, hence why we encrypt it in the cookie session
-        // Alternatively you could persist the refresh token in a backend database
+        // The refreshToken should never be accesible publicly, hence why we encrypt it
+        // in the cookie session. Alternatively you could persist the refresh token in a
+        // backend database.
         const encryptedSession = await encryptSession({
           accessToken,
           refreshToken,
