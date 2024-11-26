@@ -66,6 +66,16 @@ You can also control the pathname the user will be sent to after signing-in by p
 export const loader = authLoader({ returnPathname: '/dashboard' });
 ```
 
+If your application needs to persist `oauthTokens` or other auth-related information after the callback is successful, you can pass an `onSuccess` option:
+
+```ts
+export const loader = authLoader({
+  onSuccess: async ({ oauthTokens }) => {
+    await saveToDatabase(oauthTokens);
+  },
+});
+```
+
 ## Usage
 
 ### Access authentication data in your Remix application
