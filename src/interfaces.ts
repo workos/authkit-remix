@@ -22,6 +22,7 @@ export interface AccessToken {
   org_id?: string;
   role?: string;
   permissions?: string[];
+  entitlements?: string[];
 }
 
 export interface GetAuthURLOptions {
@@ -41,6 +42,7 @@ export interface AuthorizedData {
   organizationId: string | null;
   role: string | null;
   permissions: string[];
+  entitlements: string[];
   impersonator: Impersonator | null;
   sealedSession: string;
 }
@@ -52,6 +54,7 @@ export interface UnauthorizedData {
   organizationId: null;
   role: null;
   permissions: null;
+  entitlements: null;
   impersonator: null;
   sealedSession: null;
 }
