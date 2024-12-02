@@ -7,7 +7,7 @@ import { redirect, json, LoaderFunctionArgs } from '@remix-run/node';
 
 export function authLoader(options: HandleAuthOptions = {}) {
   return async function loader({ request }: LoaderFunctionArgs) {
-    const { returnPathname: returnPathnameOption = '/' } = options;
+    const { returnPathname: returnPathnameOption = '/', onSuccess } = options;
 
     const url = new URL(request.url);
 
@@ -17,10 +17,11 @@ export function authLoader(options: HandleAuthOptions = {}) {
 
     if (code) {
       try {
-        const { accessToken, refreshToken, user, impersonator, oauthTokens } = await workos.userManagement.authenticateWithCode({
-          clientId: WORKOS_CLIENT_ID,
-          code,
-        });
+        const { accessToken, refreshToken, user, impersonator, oauthTokens } =
+          await workos.userManagement.authenticateWithCode({
+            clientId: WORKOS_CLIENT_ID,
+            code,
+          });
 
         // Clean up params
         url.searchParams.delete('code');
@@ -41,14 +42,14 @@ export function authLoader(options: HandleAuthOptions = {}) {
           url.pathname = returnPathname;
         }
 
-        // The refreshToken and oauthTokens should never be accesible publicly, hence why we encrypt it in the cookie session
-        // Alternatively you could persist the refresh token in a backend database
+        // The refreshToken should never be accesible publicly, hence why we encrypt it
+        // in the cookie session. Alternatively you could persist the refresh token in a
+        // backend database.
         const encryptedSession = await encryptSession({
           accessToken,
           refreshToken,
           user,
           impersonator,
-          oauthTokens,
           headers: {},
         });
 
@@ -56,6 +57,16 @@ export function authLoader(options: HandleAuthOptions = {}) {
 
         session.set('jwt', encryptedSession);
         const cookie = await commitSession(session);
+
+        if (onSuccess) {
+          await onSuccess({
+            accessToken,
+            impersonator: impersonator ?? null,
+            oauthTokens: oauthTokens ?? null,
+            refreshToken,
+            user,
+          });
+        }
 
         return redirect(url.toString(), {
           headers: {

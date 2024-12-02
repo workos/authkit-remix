@@ -2,6 +2,15 @@ import { OauthTokens, User } from '@workos-inc/node';
 
 export interface HandleAuthOptions {
   returnPathname?: string;
+  onSuccess?: (data: AuthLoaderSuccessData) => void | Promise<void>;
+}
+
+export interface AuthLoaderSuccessData {
+  accessToken: string;
+  impersonator: Impersonator | null;
+  oauthTokens: OauthTokens | null;
+  refreshToken: string;
+  user: User;
 }
 
 export interface Impersonator {
@@ -14,7 +23,6 @@ export interface Session {
   refreshToken: string;
   user: User;
   impersonator?: Impersonator;
-  oauthTokens?: OauthTokens;
   headers: Record<string, string>;
 }
 
@@ -45,7 +53,6 @@ export interface AuthorizedData {
   permissions: string[];
   entitlements: string[];
   impersonator: Impersonator | null;
-  oauthTokens: OauthTokens | null;
   sealedSession: string;
 }
 
@@ -58,6 +65,5 @@ export interface UnauthorizedData {
   permissions: null;
   entitlements: null;
   impersonator: null;
-  oauthTokens: null;
   sealedSession: null;
 }

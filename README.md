@@ -66,6 +66,16 @@ You can also control the pathname the user will be sent to after signing-in by p
 export const loader = authLoader({ returnPathname: '/dashboard' });
 ```
 
+If your application needs to persist `oauthTokens` or other auth-related information after the callback is successful, you can pass an `onSuccess` option:
+
+```ts
+export const loader = authLoader({
+  onSuccess: async ({ oauthTokens }) => {
+    await saveToDatabase(oauthTokens);
+  },
+});
+```
+
 ## Usage
 
 ### Access authentication data in your Remix application
@@ -80,10 +90,9 @@ import { authkitLoader } from '@workos-inc/authkit-remix';
 export const loader = (args: LoaderFunctionArgs) => authkitLoader(args);
 
 export function App() {
-
   // Retrieves the user from the session or returns `null` if no user is signed in
-  // Other supported values include sessionId, accessToken, organizationId,
-  // role, permissions, entitlements, impersonator and oauthTokens
+  // Other supported values include `sessionId`, `accessToken`, `organizationId`,
+  // `role`, `permissions`, `entitlements`, and `impersonator`.
   const { user, signInUrl, signUpUrl } = useLoaderData<typeof loader>();
 
   return (
@@ -115,7 +124,6 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function HomePage() {
-
   const { user, signInUrl, signUpUrl } = useLoaderData<typeof loader>();
 
   if (!user) {
