@@ -1,12 +1,12 @@
 import { getAuthorizationUrl } from './get-authorization-url.js';
 import { terminateSession } from './session.js';
 
-async function getSignInUrl() {
-  return getAuthorizationUrl({ screenHint: 'sign-in' });
+async function getSignInUrl(returnPathname?: string) {
+  return getAuthorizationUrl({ returnPathname, screenHint: 'sign-in' });
 }
 
-async function getSignUpUrl() {
-  return getAuthorizationUrl({ screenHint: 'sign-up' });
+async function getSignUpUrl(returnPathname?: string) {
+  return getAuthorizationUrl({ returnPathname, screenHint: 'sign-up' });
 }
 
 async function signOut(request: Request) {
