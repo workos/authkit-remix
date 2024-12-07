@@ -16,6 +16,12 @@ or
 yarn add @workos-inc/authkit-remix
 ```
 
+## Video tutorial
+
+<a href="https://youtu.be/_beHOYkuFIM?feature=shared" target="_blank">
+  <img src="https://github.com/user-attachments/assets/f69ce993-b9ab-4015-9fd1-4042b0e92a82" alt="YouTube tutorial: Next.js App Router Authentication with AuthKit" style="display: block; width: 100%; max-width: 720px; height: auto; aspect-ratio: 16/9; object-fit: cover; object-position: center; margin: 1em auto;" onerror="this.onerror=null; this.src='https://img.youtube.com/vi/gMkHOotg0xc/0.jpg'" />
+</a>
+
 ## Pre-flight
 
 Make sure the following values are present in your `.env.local` environment variables file. The client ID and API key can be found in the [WorkOS dashboard](https://dashboard.workos.com), and the redirect URI can also be configured there.
