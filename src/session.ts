@@ -68,7 +68,10 @@ async function updateSession(request: Request, debug: boolean) {
 }
 
 async function encryptSession(session: Session) {
-  return sealData(session, { password: WORKOS_COOKIE_PASSWORD });
+  return sealData(session, {
+    password: WORKOS_COOKIE_PASSWORD,
+    ttl: 0,
+  });
 }
 
 type LoaderValue<Data> = Response | TypedResponse<Data> | NonNullable<Data> | null;
