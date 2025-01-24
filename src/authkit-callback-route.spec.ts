@@ -1,53 +1,7 @@
 import type { LoaderFunction } from '@remix-run/node';
 import { workos as workosInstance } from '../src/workos.js';
 import { authLoader } from './authkit-callback-route';
-
-function assertIsResponse(response: unknown): asserts response is Response {
-  expect(response).toBeInstanceOf(Response);
-}
-
-type SearchParamsModifier = Record<string, string> | ((params: URLSearchParams) => void);
-
-function withSearchParams(request: Request, modifier: SearchParamsModifier): Request {
-  const url = new URL(request.url);
-
-  if (typeof modifier === 'function') {
-    // Allow direct manipulation of searchParams
-    modifier(url.searchParams);
-  } else {
-    // Simple key-value setting
-    Object.entries(modifier).forEach(([key, value]) => {
-      url.searchParams.set(key, value);
-    });
-  }
-
-  return new Request(url, request);
-}
-
-function createAuthWithCodeResponse(overrides: Record<string, unknown> = {}) {
-  return {
-    accessToken: 'access123',
-    refreshToken: 'refresh123',
-    user: {
-      id: 'user_123',
-      email: 'test@example.com',
-      emailVerified: true,
-      profilePictureUrl: 'https://example.com/photo.jpg',
-      firstName: 'Test',
-      lastName: 'User',
-      object: 'user' as const,
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z',
-    },
-    //oauthTokens: {
-    //  accessToken: 'access123',
-    //  refreshToken: 'refresh123',
-    //  expiresAt: 1719811200,
-    //  scopes: ['foo', 'bar'],
-    //},
-    ...overrides,
-  };
-}
+import { createRequestWithSearchParams, createAuthWithCodeResponse, assertIsResponse } from './test-helpers.js';
 
 // Mock dependencies
 jest.mock('../src/workos.js', () => ({
@@ -78,7 +32,7 @@ describe('authLoader', () => {
     loader = authLoader();
     const url = new URL('http://example.com/callback');
 
-    request = withSearchParams(new Request(url), {
+    request = createRequestWithSearchParams(new Request(url), {
       code: 'test-code',
     });
   });
@@ -96,7 +50,7 @@ describe('authLoader', () => {
 
     it('should handle authentication failure', async () => {
       workos.userManagement.authenticateWithCode.mockRejectedValue(new Error('Auth failed'));
-      request = withSearchParams(request, { code: 'invalid-code' });
+      request = createRequestWithSearchParams(request, { code: 'invalid-code' });
       const response = (await loader({ request, params: {}, context: {} })) as Response;
 
       expect(response.status).toBe(500);
@@ -104,7 +58,7 @@ describe('authLoader', () => {
 
     it('should handle authentication failure with string error', async () => {
       workos.userManagement.authenticateWithCode.mockRejectedValue('Auth failed');
-      request = withSearchParams(request, { code: 'invalid-code' });
+      request = createRequestWithSearchParams(request, { code: 'invalid-code' });
       const response = (await loader({ request, params: {}, context: {} })) as Response;
 
       expect(response.status).toBe(500);
@@ -168,7 +122,7 @@ describe('authLoader', () => {
 
   it('uses returnPathname from state when provided', async () => {
     const response = await loader({
-      request: withSearchParams(request, {
+      request: createRequestWithSearchParams(request, {
         state: btoa(JSON.stringify({ returnPathname: '/profile' })),
       }),
       params: {},
