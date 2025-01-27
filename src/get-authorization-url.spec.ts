@@ -1,4 +1,3 @@
-import { workos } from './workos.js';
 import { WORKOS_CLIENT_ID, WORKOS_REDIRECT_URI } from './env-variables.js';
 import { getAuthorizationUrl } from './get-authorization-url.js';
 
