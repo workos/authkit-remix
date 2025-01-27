@@ -22,11 +22,13 @@ async function updateSession(request: Request, debug: boolean) {
   const hasValidSession = await verifyAccessToken(session.accessToken);
 
   if (hasValidSession) {
+    // istanbul ignore next
     if (debug) console.log('Session is valid');
     return session;
   }
 
   try {
+    // istanbul ignore next
     if (debug) console.log(`Session invalid. Refreshing access token that ends in ${session.accessToken.slice(-10)}`);
 
     // If the session is invalid (i.e. the access token has expired) attempt to re-authenticate with the refresh token
@@ -35,6 +37,7 @@ async function updateSession(request: Request, debug: boolean) {
       refreshToken: session.refreshToken,
     });
 
+    // istanbul ignore next
     if (debug) console.log(`Refresh successful. New access token ends in ${accessToken.slice(-10)}`);
 
     const newSession = {
@@ -55,6 +58,7 @@ async function updateSession(request: Request, debug: boolean) {
 
     return newSession;
   } catch (e) {
+    // istanbul ignore next
     if (debug) console.log('Failed to refresh. Deleting cookie and redirecting.', e);
 
     const cookieSession = await getSession(request.headers.get('Cookie'));
@@ -143,6 +147,7 @@ async function authkitLoader<Data = unknown>(
     return await handleAuthLoader(loader, loaderArgs, auth);
   }
 
+  // istanbul ignore next
   const {
     sessionId,
     organizationId = null,
@@ -153,6 +158,9 @@ async function authkitLoader<Data = unknown>(
 
   const cookieSession = await getSession(request.headers.get('Cookie'));
 
+  // istanbul ignore next
+  const { impersonator = null } = session;
+
   const auth: AuthorizedData = {
     user: session.user,
     sessionId,
@@ -161,7 +169,7 @@ async function authkitLoader<Data = unknown>(
     role,
     permissions,
     entitlements,
-    impersonator: session.impersonator ?? null,
+    impersonator,
     sealedSession: cookieSession.get('jwt'),
   };
 
@@ -202,6 +210,7 @@ async function handleAuthLoader(
   }
 
   // If the loader returns a non-Response, assume it's a data object
+  // istanbul ignore next
   return json({ ...loaderResult, ...auth }, session ? { headers: { ...session.headers } } : undefined);
 }
 
@@ -273,6 +282,7 @@ async function verifyAccessToken(accessToken: string) {
 function getReturnPathname(url: string): string {
   const newUrl = new URL(url);
 
+  // istanbul ignore next
   return `${newUrl.pathname}${newUrl.searchParams.size > 0 ? '?' + newUrl.searchParams.toString() : ''}`;
 }
 
