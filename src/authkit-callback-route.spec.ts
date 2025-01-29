@@ -1,7 +1,11 @@
 import type { LoaderFunction } from '@remix-run/node';
 import { workos as workosInstance } from '../src/workos.js';
 import { authLoader } from './authkit-callback-route';
-import { createRequestWithSearchParams, createAuthWithCodeResponse, assertIsResponse } from './test-helpers.js';
+import {
+  createRequestWithSearchParams,
+  createAuthWithCodeResponse,
+  assertIsResponse,
+} from './test-utils/test-helpers.js';
 
 // Mock dependencies
 jest.mock('../src/workos.js', () => ({

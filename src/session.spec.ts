@@ -1,13 +1,13 @@
 import { LoaderFunctionArgs, Session as RemixSession, redirect } from '@remix-run/node';
 import * as ironSession from 'iron-session';
-import * as cookie from './cookie';
-import { WORKOS_COOKIE_PASSWORD } from './env-variables';
+import * as cookie from './cookie.js';
+import { WORKOS_COOKIE_PASSWORD } from './env-variables.js';
 import { Session } from './interfaces.js';
-import { encryptSession, terminateSession, authkitLoader } from './session';
-import { workos } from './workos';
+import { encryptSession, terminateSession, authkitLoader } from './session.js';
+import { workos } from './workos.js';
 import * as jose from 'jose';
 import { AuthenticationResponse } from '@workos-inc/node';
-import { assertIsResponse } from './test-helpers';
+import { assertIsResponse } from './test-utils/test-helpers.js';
 
 const getSession = jest.mocked(cookie.getSession);
 const destroySession = jest.mocked(cookie.destroySession);

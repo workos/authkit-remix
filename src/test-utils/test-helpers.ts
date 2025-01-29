@@ -1,5 +1,4 @@
 /* istanbul ignore file */
-import { SignJWT } from 'jose';
 
 type SearchParamsModifier = Record<string, string> | ((params: URLSearchParams) => void);
 
@@ -10,35 +9,6 @@ type SearchParamsModifier = Record<string, string> | ((params: URLSearchParams) 
  */
 export function assertIsResponse(response: unknown): asserts response is Response {
   expect(response).toBeInstanceOf(Response);
-}
-
-/**
- * Generates a test JWT token for use in tests.
- * @param payload - The payload to include in the token.
- * @param expired - Whether the token should be expired.
- * @returns The generated JWT token.
- */
-export async function generateTestToken(payload = {}, expired = false) {
-  const defaultPayload = {
-    sid: 'session_123',
-    org_id: 'org_123',
-    role: 'member',
-    permissions: ['posts:create', 'posts:delete'],
-    entitlements: ['audit-logs'],
-  };
-
-  const mergedPayload = { ...defaultPayload, ...payload };
-
-  const secret = new TextEncoder().encode(process.env.WORKOS_COOKIE_PASSWORD as string);
-
-  const token = await new SignJWT(mergedPayload)
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setIssuer('urn:example:issuer')
-    .setExpirationTime(expired ? '0s' : '2h')
-    .sign(secret);
-
-  return token;
 }
 
 /**
