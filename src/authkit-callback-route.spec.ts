@@ -1,6 +1,6 @@
 import type { LoaderFunction } from '@remix-run/node';
 import { workos as workosInstance } from '../src/workos.js';
-import { authLoader } from './authkit-callback-route';
+import { authLoader } from './authkit-callback-route.js';
 import {
   createRequestWithSearchParams,
   createAuthWithCodeResponse,

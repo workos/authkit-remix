@@ -37,7 +37,7 @@ jest.mock('./workos.js', () => ({
 jest.mock('jose', () => ({
   createRemoteJWKSet: jest.fn(),
   jwtVerify: jest.fn(),
-  decodeJwt: jest.fn((_token: string) => ({
+  decodeJwt: jest.fn(() => ({
     sid: 'test-session-id',
   })),
 }));
@@ -48,6 +48,7 @@ jest.mock('iron-session', () => ({
 }));
 
 describe('session', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const createMockSession = (overrides?: Record<string, any>): RemixSession =>
     ({
       has: jest.fn(),

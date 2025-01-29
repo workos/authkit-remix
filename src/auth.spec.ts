@@ -1,6 +1,6 @@
-import { getSignInUrl, getSignUpUrl, signOut } from './auth';
-import * as authorizationUrl from './get-authorization-url';
-import * as session from './session';
+import { getSignInUrl, getSignUpUrl, signOut } from './auth.js';
+import * as authorizationUrl from './get-authorization-url.js';
+import * as session from './session.js';
 
 const terminateSession = jest.mocked(session.terminateSession);
 
