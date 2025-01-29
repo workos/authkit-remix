@@ -5,39 +5,4 @@ process.env.WORKOS_REDIRECT_URI = 'http://localhost:5173/callback';
 process.env.WORKOS_COOKIE_DOMAIN = 'example.com';
 process.env.WORKOS_API_HOSTNAME = 'api.workos.com';
 
-// Mock the next/headers module
-//jest.mock('next/headers', () => {
-//  const cookieStore = new Map();
-//  const headersStore = new Map();
-//
-//  return {
-//    headers: async () => ({
-//      delete: jest.fn((name: string) => headersStore.delete(name)),
-//      set: jest.fn((name: string, value: string) => headersStore.set(name, value)),
-//      _reset: () => {
-//        headersStore.clear();
-//      },
-//    }),
-//    cookies: async () => ({
-//      delete: jest.fn((nameOrObject: string | { name: string; [key: string]: unknown }) => {
-//        const cookieName = typeof nameOrObject === 'string' ? nameOrObject : nameOrObject.name;
-//        cookieStore.delete(cookieName);
-//      }),
-//      get: jest.fn((name: string) => cookieStore.get(name)),
-//      getAll: jest.fn(() => Array.from(cookieStore.entries())),
-//      set: jest.fn((name: string, value: string | { [key: string]: string | number | boolean }) =>
-//        cookieStore.set(name, {
-//          name,
-//          value,
-//        }),
-//      ),
-//      _reset: () => {
-//        cookieStore.clear();
-//      },
-//    }),
-//  };
-//});
-
-//jest.mock('next/navigation', () => ({
-//  redirect: jest.fn(),
-//}));
+export {};
