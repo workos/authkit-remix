@@ -19,7 +19,8 @@
     "prepublishOnly": "npm run lint",
     "lint": "eslint \"src/**/*.ts*\"",
     "test": "jest",
-    "prettier": "prettier \"{src,__tests__}/**/*.{js,ts,tsx}\" --check"
+    "prettier": "prettier \"{src,__tests__}/**/*.{js,ts,tsx}\" --check",
+    "format": "prettier --write \"{src,__tests__}/**/*.{js,ts,tsx}\""
   },
   "dependencies": {
     "@workos-inc/node": "^7.31.0",
