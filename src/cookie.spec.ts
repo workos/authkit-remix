@@ -1,11 +1,13 @@
+import { mockEnvVars } from './test-utils/test-helpers.js';
+
 describe('cookie', () => {
   beforeEach(() => {
     jest.resetModules();
-    jest.mock('./env-variables.js', () => ({
+    mockEnvVars({
       WORKOS_REDIRECT_URI: 'https://example.com',
       WORKOS_COOKIE_MAX_AGE: undefined,
-      WORKOW_COOKIE_PASSWORD: 'a really long password that fits the minimum length requirements',
-    }));
+      WORKOS_COOKIE_PASSWORD: 'a really long password that fits the minimum length requirements',
+    });
   });
 
   describe('cookie with undefined MAX_AGE', () => {
@@ -20,11 +22,11 @@ describe('cookie', () => {
 
   describe('cookie with defined MAX_AGE', () => {
     beforeEach(() => {
-      jest.mock('./env-variables.js', () => ({
+      mockEnvVars({
         WORKOS_REDIRECT_URI: 'https://example.com',
-        WORKOS_COOKIE_MAX_AGE: 3600,
-        WORKOW_COOKIE_PASSWORD: 'a really long password that fits the minimum length requirements',
-      }));
+        WORKOS_COOKIE_MAX_AGE: '3600',
+        WORKOS_COOKIE_PASSWORD: 'a really long password that fits the minimum length requirements',
+      });
     });
 
     it('should create a cookie session storage', async () => {

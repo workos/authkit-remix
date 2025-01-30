@@ -1,5 +1,5 @@
 import { HandleAuthOptions } from './interfaces.js';
-import { WORKOS_CLIENT_ID } from './env-variables.js';
+import { getEnvVariable } from './env-variables.js';
 import { workos } from './workos.js';
 import { encryptSession } from './session.js';
 import { getSession, commitSession, cookieName } from './cookie.js';
@@ -19,7 +19,7 @@ export function authLoader(options: HandleAuthOptions = {}) {
       try {
         const { accessToken, refreshToken, user, impersonator, oauthTokens } =
           await workos.userManagement.authenticateWithCode({
-            clientId: WORKOS_CLIENT_ID,
+            clientId: getEnvVariable('WORKOS_CLIENT_ID'),
             code,
           });
 

@@ -1,7 +1,6 @@
 import { LoaderFunctionArgs, Session as RemixSession, redirect } from '@remix-run/node';
 import * as ironSession from 'iron-session';
 import * as cookie from './cookie.js';
-import { WORKOS_COOKIE_PASSWORD } from './env-variables.js';
 import { Session } from './interfaces.js';
 import { encryptSession, terminateSession, authkitLoader } from './session.js';
 import { workos } from './workos.js';
@@ -94,7 +93,7 @@ describe('session', () => {
 
       expect(result).toBe('encrypted-data');
       expect(sealData).toHaveBeenCalledWith(mockSession, {
-        password: WORKOS_COOKIE_PASSWORD,
+        password: process.env.WORKOS_COOKIE_PASSWORD,
         ttl: 0,
       });
       expect(sealData).toHaveBeenCalledTimes(1);

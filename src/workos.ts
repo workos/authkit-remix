@@ -1,12 +1,12 @@
 import { WorkOS } from '@workos-inc/node';
-import { WORKOS_API_HOSTNAME, WORKOS_API_HTTPS, WORKOS_API_KEY, WORKOS_API_PORT } from './env-variables.js';
+import { getEnvVariable, getOptionalEnvVariable } from './env-variables.js';
 
 const VERSION = '0.7.1';
 
 const options = {
-  apiHostname: WORKOS_API_HOSTNAME,
-  https: WORKOS_API_HTTPS ? WORKOS_API_HTTPS === 'true' : true,
-  port: WORKOS_API_PORT ? parseInt(WORKOS_API_PORT) : undefined,
+  apiHostname: getOptionalEnvVariable('WORKOS_API_HOSTNAME'),
+  https: getOptionalEnvVariable('WORKOS_API_HTTPS') ? getEnvVariable('WORKOS_API_HTTPS') === 'true' : true,
+  port: getOptionalEnvVariable('WORKOS_API_PORT') ? parseInt(getEnvVariable('WORKOS_API_PORT')) : undefined,
   appInfo: {
     name: 'authkit-remix',
     version: VERSION,
@@ -14,6 +14,6 @@ const options = {
 };
 
 // Initialize the WorkOS client
-const workos = new WorkOS(WORKOS_API_KEY, options);
+const workos = new WorkOS(getEnvVariable('WORKOS_API_KEY'), options);
 
 export { workos };

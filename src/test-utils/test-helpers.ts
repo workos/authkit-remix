@@ -56,3 +56,47 @@ export function createAuthWithCodeResponse(overrides: Record<string, unknown> = 
     ...overrides,
   };
 }
+
+const {
+  WORKOS_API_KEY,
+  WORKOS_CLIENT_ID,
+  WORKOS_COOKIE_PASSWORD,
+  WORKOS_REDIRECT_URI,
+  WORKOS_COOKIE_DOMAIN,
+  WORKOS_API_HOSTNAME,
+  WORKOS_API_HTTPS,
+  WORKOS_API_PORT,
+  WORKOS_COOKIE_MAX_AGE,
+} = process.env;
+
+export const env = {
+  WORKOS_API_KEY,
+  WORKOS_CLIENT_ID,
+  WORKOS_COOKIE_PASSWORD,
+  WORKOS_REDIRECT_URI,
+  WORKOS_COOKIE_DOMAIN,
+  WORKOS_API_HOSTNAME,
+  WORKOS_API_HTTPS,
+  WORKOS_API_PORT,
+  WORKOS_COOKIE_MAX_AGE,
+} as const;
+
+/**
+ * Mocks the environment variables for the tests.
+ * @param overrides - Any properties to override in the mock environment variables.
+ */
+export function mockEnvVars<K extends keyof typeof env>(overrides?: Record<K, string | undefined>) {
+  const environment = { ...env, ...overrides };
+  jest.mock('../env-variables.js', () => ({
+    getEnvVariable: jest.fn((name: K) => {
+      const val = { ...env, ...overrides }[name];
+      if (!val) {
+        throw new Error(`Missing required environment variable: ${name}`);
+      }
+
+      return val;
+    }),
+    getOptionalEnvVariable: jest.fn((name: K) => ({ ...env, ...overrides })[name]),
+  }));
+  return environment;
+}

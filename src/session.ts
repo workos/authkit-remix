@@ -1,15 +1,15 @@
-import { json, redirect } from '@remix-run/node';
 import type { LoaderFunctionArgs, SessionData, TypedResponse } from '@remix-run/node';
-import { WORKOS_CLIENT_ID, WORKOS_COOKIE_PASSWORD } from './env-variables.js';
-import type { AccessToken, AuthorizedData, UnauthorizedData, AuthKitLoaderOptions, Session } from './interfaces.js';
-import { getSession, destroySession, commitSession } from './cookie.js';
+import { json, redirect } from '@remix-run/node';
+import { commitSession, destroySession, getSession } from './cookie.js';
+import { getEnvVariable } from './env-variables.js';
 import { getAuthorizationUrl } from './get-authorization-url.js';
+import type { AccessToken, AuthKitLoaderOptions, AuthorizedData, Session, UnauthorizedData } from './interfaces.js';
 import { workos } from './workos.js';
 
 import { sealData, unsealData } from 'iron-session';
-import { jwtVerify, createRemoteJWKSet, decodeJwt } from 'jose';
+import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
 
-const JWKS = createRemoteJWKSet(new URL(workos.userManagement.getJwksUrl(WORKOS_CLIENT_ID)));
+const JWKS = createRemoteJWKSet(new URL(workos.userManagement.getJwksUrl(getEnvVariable('WORKOS_CLIENT_ID'))));
 
 async function updateSession(request: Request, debug: boolean) {
   const session = await getSessionFromCookie(request.headers.get('Cookie') as string);
@@ -33,7 +33,7 @@ async function updateSession(request: Request, debug: boolean) {
 
     // If the session is invalid (i.e. the access token has expired) attempt to re-authenticate with the refresh token
     const { accessToken, refreshToken } = await workos.userManagement.authenticateWithRefreshToken({
-      clientId: WORKOS_CLIENT_ID,
+      clientId: getEnvVariable('WORKOS_CLIENT_ID'),
       refreshToken: session.refreshToken,
     });
 
@@ -73,7 +73,7 @@ async function updateSession(request: Request, debug: boolean) {
 
 async function encryptSession(session: Session) {
   return sealData(session, {
-    password: WORKOS_COOKIE_PASSWORD,
+    password: getEnvVariable('WORKOS_COOKIE_PASSWORD'),
     ttl: 0,
   });
 }
@@ -263,7 +263,7 @@ async function getSessionFromCookie(cookie: string, session?: SessionData) {
 
   if (session.has('jwt')) {
     return unsealData<Session>(session.get('jwt'), {
-      password: WORKOS_COOKIE_PASSWORD,
+      password: getEnvVariable('WORKOS_COOKIE_PASSWORD'),
     });
   } else {
     return null;
@@ -286,4 +286,4 @@ function getReturnPathname(url: string): string {
   return `${newUrl.pathname}${newUrl.searchParams.size > 0 ? '?' + newUrl.searchParams.toString() : ''}`;
 }
 
-export { encryptSession, terminateSession, authkitLoader };
+export { authkitLoader, encryptSession, terminateSession };
