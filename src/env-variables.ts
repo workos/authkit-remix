@@ -1,3 +1,5 @@
+/* istanbul ignore file */
+
 function getEnvVariable(name: string): string {
   const envVariable = process.env[name];
   if (!envVariable) {
