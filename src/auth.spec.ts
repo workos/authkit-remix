@@ -10,7 +10,6 @@ jest.mock('./session', () => ({
 
 describe('auth', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
     jest.spyOn(authorizationUrl, 'getAuthorizationUrl');
   });
 

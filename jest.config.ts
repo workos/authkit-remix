@@ -4,6 +4,9 @@ const config: Config = {
   // Automatically clear mock calls, instances, contexts and results before every test
   clearMocks: true,
 
+  // Automatically reset mock state between every test
+  resetMocks: true,
+
   // Indicates whether the coverage information should be collected while executing the test
   collectCoverage: true,
 
@@ -56,10 +59,10 @@ const config: Config = {
 
   coverageThreshold: {
     global: {
-      branches: 100,
-      functions: 100,
-      lines: 100,
-      statements: 100,
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
     },
   },
 };

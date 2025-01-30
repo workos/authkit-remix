@@ -13,7 +13,7 @@ const getSession = jest.mocked(cookie.getSession);
 const destroySession = jest.mocked(cookie.destroySession);
 const unsealData = jest.mocked(ironSession.unsealData);
 const sealData = jest.mocked(ironSession.sealData);
-const mockedGetLogoutUrl = jest.mocked(workos.userManagement.getLogoutUrl);
+const getLogoutUrl = jest.mocked(workos.userManagement.getLogoutUrl);
 const authenticateWithRefreshToken = jest.mocked(workos.userManagement.authenticateWithRefreshToken);
 const jwtVerify = jest.mocked(jose.jwtVerify);
 
@@ -68,8 +68,37 @@ describe('session', () => {
       }),
     });
 
-  beforeEach(() => {
-    jest.clearAllMocks();
+  describe('encryptSession', () => {
+    it('should encrypt session data with correct parameters', async () => {
+      const mockSession = {
+        accessToken: 'test-access-token',
+        refreshToken: 'test-refresh-token',
+        user: {
+          object: 'user',
+          id: 'test-user',
+          email: 'test@example.com',
+          emailVerified: true,
+          profilePictureUrl: 'https://example.com/avatar.jpg',
+          firstName: 'Test',
+          lastName: 'User',
+          createdAt: '2021-01-01T00:00:00Z',
+          updatedAt: '2021-01-01T00:00:00Z',
+        },
+        impersonator: undefined,
+        headers: {},
+      } satisfies Session;
+
+      sealData.mockResolvedValueOnce('encrypted-data');
+
+      const result = await encryptSession(mockSession);
+
+      expect(result).toBe('encrypted-data');
+      expect(sealData).toHaveBeenCalledWith(mockSession, {
+        password: WORKOS_COOKIE_PASSWORD,
+        ttl: 0,
+      });
+      expect(sealData).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('terminateSession', () => {
@@ -80,40 +109,35 @@ describe('session', () => {
         }),
       });
 
-    // TODO: add this test back in when fixing session being null issue
-    //it('should redirect to root when no jwt in session', async () => {
-    //  // Setup a session without jwt
-    //  const mockSession = {
-    //    has: jest.fn().mockReturnValue(false),
-    //    get: jest.fn(),
-    //    set: jest.fn(),
-    //    unset: jest.fn(),
-    //    flash: jest.fn(),
-    //    id: 'test-session-id',
-    //    data: {},
-    //  } satisfies Session;
-    //
-    //  getSession.mockResolvedValueOnce(mockSession);
-    //
-    //  // Mock unsealData to return null to simulate no session
-    //  unsealData.mockResolvedValueOnce({
-    //    accessToken: null,
-    //    refreshToken: null,
-    //    user: null,
-    //    impersonator: null,
-    //  });
-    //
-    //  // Execute
-    //  const response = await terminateSession(createMockRequest());
-    //
-    //  // Assert response is instance of Remix Response
-    //  expect(response instanceof Response).toBe(true);
-    //  expect(response.status).toBe(302);
-    //  expect(response.headers.get('Location')).toBe('/');
-    //  expect(response.headers.get('Set-Cookie')).toBe('destroyed-session-cookie');
-    //  expect(destroySession).toHaveBeenCalledWith(mockSession);
-    //  expect(mockedGetLogoutUrl).not.toHaveBeenCalled();
-    //});
+    it('should redirect to root when session token has no sessionId', async () => {
+      const mockSession = createMockSession({
+        has: jest.fn().mockReturnValue(true),
+        get: jest.fn().mockReturnValue('encrypted-jwt'),
+      });
+
+      getSession.mockResolvedValueOnce(mockSession);
+
+      // Mock session data with a token that will decode to no sessionId
+      const mockSessionData = {
+        accessToken: 'token.without.sessionid',
+        refreshToken: 'refresh-token',
+        user: { id: 'user-id' },
+        impersonator: null,
+      };
+      unsealData.mockResolvedValueOnce(mockSessionData);
+
+      // Mock decodeJwt to return no sessionId
+      (jose.decodeJwt as jest.Mock).mockReturnValueOnce({});
+
+      const response = await terminateSession(createMockRequest());
+
+      expect(response instanceof Response).toBe(true);
+      expect(response.status).toBe(302);
+      expect(response.headers.get('Location')).toBe('/');
+      expect(response.headers.get('Set-Cookie')).toBe('destroyed-session-cookie');
+      expect(destroySession).toHaveBeenCalledWith(mockSession);
+      expect(getLogoutUrl).not.toHaveBeenCalled();
+    });
 
     it('should redirect to WorkOS logout URL when valid session exists', async () => {
       // Setup a session with jwt
@@ -142,77 +166,11 @@ describe('session', () => {
       expect(response.headers.get('Location')).toBe('https://auth.workos.com/logout/test-session-id');
       expect(response.headers.get('Set-Cookie')).toBe('destroyed-session-cookie');
       expect(destroySession).toHaveBeenCalledWith(mockSession);
-      expect(mockedGetLogoutUrl).toHaveBeenCalledWith({
+      expect(getLogoutUrl).toHaveBeenCalledWith({
         sessionId: 'test-session-id',
       });
       expect(mockSession.has).toHaveBeenCalledWith('jwt');
       expect(mockSession.get).toHaveBeenCalledWith('jwt');
-    });
-
-    describe('encryptSession', () => {
-      beforeEach(() => {
-        jest.clearAllMocks();
-      });
-
-      it('should encrypt session data with correct parameters', async () => {
-        const mockSession = {
-          accessToken: 'test-access-token',
-          refreshToken: 'test-refresh-token',
-          user: {
-            object: 'user',
-            id: 'test-user',
-            email: 'test@example.com',
-            emailVerified: true,
-            profilePictureUrl: 'https://example.com/avatar.jpg',
-            firstName: 'Test',
-            lastName: 'User',
-            createdAt: '2021-01-01T00:00:00Z',
-            updatedAt: '2021-01-01T00:00:00Z',
-          },
-          impersonator: undefined,
-          headers: {},
-        } satisfies Session;
-
-        sealData.mockResolvedValueOnce('encrypted-data');
-
-        const result = await encryptSession(mockSession);
-
-        expect(result).toBe('encrypted-data');
-        expect(sealData).toHaveBeenCalledWith(mockSession, {
-          password: WORKOS_COOKIE_PASSWORD,
-          ttl: 0,
-        });
-        expect(sealData).toHaveBeenCalledTimes(1);
-      });
-    });
-    it('should redirect to root when session token has no sessionId', async () => {
-      const mockSession = createMockSession({
-        has: jest.fn().mockReturnValue(true),
-        get: jest.fn().mockReturnValue('encrypted-jwt'),
-      });
-
-      getSession.mockResolvedValueOnce(mockSession);
-
-      // Mock session data with a token that will decode to no sessionId
-      const mockSessionData = {
-        accessToken: 'token.without.sessionid',
-        refreshToken: 'refresh-token',
-        user: { id: 'user-id' },
-        impersonator: null,
-      };
-      unsealData.mockResolvedValueOnce(mockSessionData);
-
-      // Mock decodeJwt to return no sessionId
-      (jose.decodeJwt as jest.Mock).mockReturnValueOnce({});
-
-      const response = await terminateSession(createMockRequest());
-
-      expect(response instanceof Response).toBe(true);
-      expect(response.status).toBe(302);
-      expect(response.headers.get('Location')).toBe('/');
-      expect(response.headers.get('Set-Cookie')).toBe('destroyed-session-cookie');
-      expect(destroySession).toHaveBeenCalledWith(mockSession);
-      expect(mockedGetLogoutUrl).not.toHaveBeenCalled();
     });
   });
   describe('authkitLoader', () => {
@@ -220,10 +178,6 @@ describe('session', () => {
       request,
       params: {},
       context: {},
-    });
-
-    beforeEach(() => {
-      jest.clearAllMocks();
     });
 
     describe('unauthenticated flows', () => {
