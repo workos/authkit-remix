@@ -2,11 +2,12 @@ import { HandleAuthOptions } from './interfaces.js';
 import { WORKOS_CLIENT_ID } from './env-variables.js';
 import { workos } from './workos.js';
 import { encryptSession } from './session.js';
-import { getSession, commitSession, cookieName } from './cookie.js';
+import { getSessionStorage } from './cookie.js';
 import { redirect, json, LoaderFunctionArgs } from '@remix-run/node';
 
 export function authLoader(options: HandleAuthOptions = {}) {
   return async function loader({ request }: LoaderFunctionArgs) {
+    const { getSession, commitSession, cookieName } = await getSessionStorage();
     const { returnPathname: returnPathnameOption = '/', onSuccess } = options;
 
     const url = new URL(request.url);

@@ -1,5 +1,5 @@
 import { authLoader } from './authkit-callback-route.js';
-import { authkitLoader } from './session.js';
+import { authkitLoader, createRootAuthKitLoader } from './session.js';
 import { getSignInUrl, getSignUpUrl, signOut } from './auth.js';
 
 export {
@@ -10,4 +10,5 @@ export {
   signOut,
   //
   authkitLoader,
+  createRootAuthKitLoader,
 };
