@@ -16,6 +16,24 @@ export const errors = {
   configAlreadyCalled: 'SessionStorage has already been configured.',
 } as const;
 
+/**
+ * A promise that can be resolved or rejected externally.
+ * This is useful for creating a promise and resolving it later.
+ * Note: Replace with `Promise.withResolvers` when upgrading to Node.js 22.
+ * @template T - The type of the value that the promise will resolve to.
+ * @returns An object containing the promise, and the resolve and reject functions.
+ */
+function createPromiseWithResolvers<T>() {
+  let resolve: (value: T) => void;
+  let reject: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return { promise, resolve: resolve!, reject: reject! };
+}
+
 export class SessionStorageManager {
   /**
    * The default cookie name used for storing the session id.
@@ -28,7 +46,7 @@ export class SessionStorageManager {
   private isConfigured = false;
 
   constructor() {
-    const { promise, resolve } = Promise.withResolvers<SessionStorage>();
+    const { promise, resolve } = createPromiseWithResolvers<SessionStorage>();
     this.sessionStoragePromise = promise;
     this.resolveConfig = resolve;
   }
