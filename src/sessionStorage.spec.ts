@@ -1,7 +1,7 @@
 import { createCookie, createMemorySessionStorage } from '@remix-run/node';
-import { SessionStorageManager, errors } from './cookie.js';
+import { SessionStorageManager, errors } from './sessionStorage.js';
 
-describe('cookie', () => {
+describe('SessionStorageManager', () => {
   let storage: SessionStorageManager;
 
   beforeEach(() => {
@@ -100,7 +100,7 @@ describe('cookie', () => {
 
     beforeEach(async () => {
       jest.resetModules();
-      ({ configureSessionStorage, getSessionStorage } = await import('./cookie.js'));
+      ({ configureSessionStorage, getSessionStorage } = await import('./sessionStorage.js'));
     });
 
     it('configures and returns session storage', () => {

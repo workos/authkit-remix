@@ -2,7 +2,7 @@ import { HandleAuthOptions } from './interfaces.js';
 import { WORKOS_CLIENT_ID } from './env-variables.js';
 import { workos } from './workos.js';
 import { encryptSession } from './session.js';
-import { getSessionStorage } from './cookie.js';
+import { getSessionStorage } from './sessionStorage.js';
 import { redirect, json, LoaderFunctionArgs } from '@remix-run/node';
 
 export function authLoader(options: HandleAuthOptions = {}) {

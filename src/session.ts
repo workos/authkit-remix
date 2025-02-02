@@ -1,13 +1,13 @@
-import { json, redirect } from '@remix-run/node';
 import type { LoaderFunctionArgs, SessionData, TypedResponse } from '@remix-run/node';
+import { json, redirect } from '@remix-run/node';
 import { WORKOS_CLIENT_ID, WORKOS_COOKIE_PASSWORD } from './env-variables.js';
-import type { AccessToken, AuthorizedData, UnauthorizedData, AuthKitLoaderOptions, Session } from './interfaces.js';
 import { getAuthorizationUrl } from './get-authorization-url.js';
+import type { AccessToken, AuthKitLoaderOptions, AuthorizedData, Session, UnauthorizedData } from './interfaces.js';
 import { workos } from './workos.js';
 
 import { sealData, unsealData } from 'iron-session';
-import { jwtVerify, createRemoteJWKSet, decodeJwt } from 'jose';
-import { configureSessionStorage, getSessionStorage } from './cookie.js';
+import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
+import { configureSessionStorage, getSessionStorage } from './sessionStorage.js';
 
 const JWKS = createRemoteJWKSet(new URL(workos.userManagement.getJwksUrl(WORKOS_CLIENT_ID)));
 
@@ -85,10 +85,6 @@ type LoaderReturnValue<Data> = Promise<LoaderValue<Data>> | LoaderValue<Data>;
 type AuthLoader<Data> = (
   args: LoaderFunctionArgs & { auth: AuthorizedData | UnauthorizedData },
 ) => LoaderReturnValue<Data>;
-
-interface AuthKitConfig<Data = unknown> extends AuthKitLoaderOptions {
-  loader?: AuthLoader<Data> | AuthorizedAuthLoader<Data>;
-}
 
 type AuthorizedAuthLoader<Data> = (args: LoaderFunctionArgs & { auth: AuthorizedData }) => LoaderReturnValue<Data>;
 
@@ -300,4 +296,4 @@ function getReturnPathname(url: string): string {
   return `${newUrl.pathname}${newUrl.searchParams.size > 0 ? '?' + newUrl.searchParams.toString() : ''}`;
 }
 
-export { encryptSession, terminateSession, authkitLoader };
+export { authkitLoader, encryptSession, terminateSession };

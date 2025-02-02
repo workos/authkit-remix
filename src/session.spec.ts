@@ -5,7 +5,7 @@ import * as jose from 'jose';
 import {
   configureSessionStorage as configureSessionStorageMock,
   getSessionStorage as getSessionStorageMock,
-} from './cookie.js';
+} from './sessionStorage.js';
 import { WORKOS_COOKIE_PASSWORD } from './env-variables.js';
 import { Session } from './interfaces.js';
 import { authkitLoader, encryptSession, terminateSession } from './session.js';
@@ -20,7 +20,7 @@ const getSessionStorage = jest.mocked(getSessionStorageMock);
 const configureSessionStorage = jest.mocked(configureSessionStorageMock);
 const jwtVerify = jest.mocked(jose.jwtVerify);
 
-jest.mock('./cookie.js', () => ({
+jest.mock('./sessionStorage.js', () => ({
   configureSessionStorage: jest.fn(),
   getSessionStorage: jest.fn(),
 }));

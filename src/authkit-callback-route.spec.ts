@@ -6,7 +6,7 @@ import {
   createAuthWithCodeResponse,
   assertIsResponse,
 } from './test-utils/test-helpers.js';
-import { configureSessionStorage } from './cookie.js';
+import { configureSessionStorage } from './sessionStorage.js';
 
 // Mock dependencies
 jest.mock('../src/workos.js', () => ({
