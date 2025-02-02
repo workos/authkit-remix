@@ -6,6 +6,7 @@ import {
   createAuthWithCodeResponse,
   assertIsResponse,
 } from './test-utils/test-helpers.js';
+import { configureSessionStorage } from './cookie.js';
 
 // Mock dependencies
 jest.mock('../src/workos.js', () => ({
@@ -25,6 +26,7 @@ describe('authLoader', () => {
   beforeAll(() => {
     // Silence console.error during tests
     jest.spyOn(console, 'error').mockImplementation(() => {});
+    configureSessionStorage();
   });
 
   beforeEach(async () => {
