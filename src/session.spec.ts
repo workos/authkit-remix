@@ -86,7 +86,7 @@ describe('session', () => {
       commitSession,
     });
 
-    configureSessionStorage.mockReturnValue({
+    configureSessionStorage.mockResolvedValue({
       cookieName: 'wos-cookie',
       getSession,
       destroySession,

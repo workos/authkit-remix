@@ -123,7 +123,7 @@ async function authkitLoader<Data = unknown>(
     cookie,
   } = typeof loaderOrOptions === 'object' ? loaderOrOptions : options;
 
-  const { getSession, destroySession } = configureSessionStorage({ storage, cookie });
+  const { getSession, destroySession } = await configureSessionStorage({ storage, cookieName: cookie?.name });
 
   const { request } = loaderArgs;
   const session = await updateSession(request, debug);

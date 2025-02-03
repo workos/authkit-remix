@@ -3,7 +3,7 @@ import { WORKOS_REDIRECT_URI, WORKOS_COOKIE_MAX_AGE, WORKOS_COOKIE_PASSWORD } fr
 
 interface SessionStorageConfig {
   storage?: SessionStorage;
-  cookie?: SessionIdStorageStrategy['cookie'];
+  cookieName?: string;
 }
 
 export const errors = {
@@ -16,51 +16,25 @@ export const errors = {
   configAlreadyCalled: 'SessionStorage has already been configured.',
 } as const;
 
-/**
- * A promise that can be resolved or rejected externally.
- * This is useful for creating a promise and resolving it later.
- * Note: Replace with `Promise.withResolvers` when upgrading to Node.js 22.
- * @template T - The type of the value that the promise will resolve to.
- * @returns An object containing the promise, and the resolve and reject functions.
- */
-function createPromiseWithResolvers<T>() {
-  let resolve: (value: T) => void;
-  let reject: (error: unknown) => void;
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-
-  return { promise, resolve: resolve!, reject: reject! };
-}
-
 export class SessionStorageManager {
   /**
    * The default cookie name used for storing the session id.
    */
   static readonly DEFAULT_COOKIE_NAME = 'wos-session';
 
-  private sessionStoragePromise: Promise<SessionStorage>;
+  private storage: SessionStorage | null = null;
+  private configPromise: Promise<void> | null = null;
   private cookieName: string = SessionStorageManager.DEFAULT_COOKIE_NAME;
-  private resolveConfig: (storage: SessionStorage) => void;
-  private isConfigured = false;
 
-  constructor() {
-    const { promise, resolve } = createPromiseWithResolvers<SessionStorage>();
-    this.sessionStoragePromise = promise;
-    this.resolveConfig = resolve;
-  }
-
-  configure(config: SessionStorageConfig = {}) {
-    if (this.isConfigured) {
-      throw new Error(errors.configAlreadyCalled);
+  async configure(config: SessionStorageConfig = {}) {
+    if (!this.configPromise) {
+      this.configPromise = new Promise<void>((resolve) => {
+        this.storage = this.createSessionStorage(config);
+        resolve();
+      });
     }
 
-    const sessionStorage = this.createSessionStorage(config);
-    this.cookieName = config.cookie?.name ?? SessionStorageManager.DEFAULT_COOKIE_NAME;
-    this.isConfigured = true;
-    this.resolveConfig(sessionStorage);
-    return { ...sessionStorage, cookieName: this.cookieName };
+    return this.getSessionStorage();
   }
 
   /**
@@ -68,30 +42,29 @@ export class SessionStorageManager {
    * If no configuration has been set, this will throw an error.
    * @returns The configured SessionStorage instance, and the cookie name.
    */
-  async getSessionStorage() {
-    if (!this.isConfigured) {
+  async getSessionStorage(): Promise<SessionStorage & { cookieName: string }> {
+    this.configPromise && (await this.configPromise);
+    const { storage, cookieName } = this;
+
+    if (!storage || !cookieName) {
       throw new Error(errors.configureSessionStorage);
     }
 
-    const storage = await this.sessionStoragePromise;
-    const { cookieName } = this;
     return { ...storage, cookieName };
   }
 
-  private createSessionStorage({
-    storage,
-    cookie,
-  }: {
-    storage?: SessionStorage;
-    cookie?: SessionIdStorageStrategy['cookie'];
-  } = {}): SessionStorage {
+  private createSessionStorage({ storage, cookieName }: SessionStorageConfig = {}): SessionStorage {
     if (storage) {
       return storage;
     }
 
+    if (cookieName) {
+      this.cookieName = cookieName;
+    }
+
     const cookieOptions = {
       ...this.getDefaultCookieOptions(),
-      ...cookie,
+      ...(cookieName ? { name: cookieName } : {}),
     };
 
     return createCookieSessionStorage({
@@ -126,8 +99,8 @@ const sessionManager = new SessionStorageManager();
  * @param config - The configuration options for the SessionStorage instance.
  * @returns The configured SessionStorage instance.
  */
-export function configureSessionStorage(config: SessionStorageConfig = {}) {
-  return sessionManager.configure(config);
+export async function configureSessionStorage(config?: SessionStorageConfig) {
+  return await sessionManager.configure(config);
 }
 
 /**

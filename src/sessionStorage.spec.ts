@@ -15,28 +15,41 @@ describe('SessionStorageManager', () => {
   });
 
   describe('singleton configuration', () => {
-    it('configures and returns session storage', () => {
+    it('configures and returns session storage', async () => {
       // call once
-      const { cookieName, getSession, commitSession, destroySession } = storage.configure();
+      const { cookieName, getSession, commitSession, destroySession } = await storage.configure();
       expect(cookieName).toBe('wos-session');
       expect(getSession).toBeDefined();
       expect(commitSession).toBeDefined();
       expect(destroySession).toBeDefined();
     });
 
-    it('should throw an error if configure is called more than once', () => {
-      // call once
-      storage.configure();
+    it('should use consistent configuration even with race conditions', async () => {
+      const manager = new SessionStorageManager();
 
-      expect(() => {
-        storage.configure();
-      }).toThrow();
+      // Simulate two concurrent configure calls
+      const config1 = { cookieName: 'session1' };
+      const config2 = { cookieName: 'session2' };
+
+      // Start both configurations
+      const promise1 = manager.configure(config1);
+      const promise2 = manager.configure(config2);
+
+      // Wait for both to complete
+      const [storage1, storage2] = await Promise.all([promise1, promise2]);
+
+      // They should be the same instance
+      expect(storage1.cookieName).toBe(storage2.cookieName);
+
+      // But which configuration won? It's not deterministic!
+      // The cookie name could be either 'session1' or 'session2'
+      // depending on which call actually created the storage
     });
 
-    it('configures a passed in storafe option', () => {
+    it('configures a passed in storafe option', async () => {
       const redirectUrl = new URL('https://example.com/');
       const isSecureProtocol = redirectUrl.protocol === 'https:';
-      const cookie = createCookie('wos-session', {
+      const cookie = createCookie('_cookie', {
         path: '/',
         httpOnly: true,
         secure: isSecureProtocol,
@@ -50,9 +63,9 @@ describe('SessionStorageManager', () => {
         secrets: [process.env.WORKOS_COOKIE_PASSWORD ?? 'bDzFqSBOkTtDkC+wG9qeIQ4dvCZeiV2g'],
       });
 
-      const { cookieName, getSession, commitSession, destroySession } = storage.configure({
+      const { cookieName, getSession, commitSession, destroySession } = await storage.configure({
         storage: createMemorySessionStorage({ cookie }),
-        cookie,
+        cookieName: '_cookie',
       });
       expect(cookieName).toBe('wos-session');
       expect(getSession).toBeDefined();
@@ -95,17 +108,17 @@ describe('SessionStorageManager', () => {
   });
 
   describe('singleton', () => {
-    let configureSessionStorage: () => ReturnType<SessionStorageManager['configure']> & { cookieName: string };
-    let getSessionStorage: () => ReturnType<SessionStorageManager['getSessionStorage'] & { cookieName: string }>;
+    let configureSessionStorage: (typeof import('./sessionStorage.js'))['configureSessionStorage'];
+    let getSessionStorage: (typeof import('./sessionStorage.js'))['getSessionStorage'];
 
     beforeEach(async () => {
       jest.resetModules();
       ({ configureSessionStorage, getSessionStorage } = await import('./sessionStorage.js'));
     });
 
-    it('configures and returns session storage', () => {
+    it('configures and returns session storage', async () => {
       // call once
-      const { cookieName, getSession, commitSession, destroySession } = configureSessionStorage();
+      const { cookieName, getSession, commitSession, destroySession } = await configureSessionStorage();
       expect(cookieName).toBe('wos-session');
       expect(getSession).toBeDefined();
       expect(commitSession).toBeDefined();
