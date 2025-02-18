@@ -1,4 +1,4 @@
-import { createCookie, createCookieSessionStorage, createMemorySessionStorage } from '@remix-run/node';
+import { createCookie, createMemorySessionStorage } from '@remix-run/node';
 import { SessionStorageManager, errors } from './sessionStorage.js';
 
 describe('SessionStorageManager', () => {
