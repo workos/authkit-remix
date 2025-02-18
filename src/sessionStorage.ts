@@ -1,5 +1,10 @@
 import { createCookieSessionStorage, type SessionIdStorageStrategy, type SessionStorage } from '@remix-run/node';
-import { WORKOS_REDIRECT_URI, WORKOS_COOKIE_MAX_AGE, WORKOS_COOKIE_PASSWORD } from './env-variables.js';
+import {
+  WORKOS_REDIRECT_URI,
+  WORKOS_COOKIE_MAX_AGE,
+  WORKOS_COOKIE_PASSWORD,
+  WORKOS_COOKIE_NAME,
+} from './env-variables.js';
 
 interface SessionStorageConfig {
   storage?: SessionStorage;
@@ -76,7 +81,7 @@ export class SessionStorageManager {
     const redirectUrl = new URL(WORKOS_REDIRECT_URI);
     const isSecureProtocol = redirectUrl.protocol === 'https:';
     return {
-      name: SessionStorageManager.DEFAULT_COOKIE_NAME,
+      name: WORKOS_COOKIE_NAME || SessionStorageManager.DEFAULT_COOKIE_NAME,
       path: '/',
       httpOnly: true,
       secure: isSecureProtocol,
