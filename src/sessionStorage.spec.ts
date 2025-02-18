@@ -9,7 +9,7 @@ describe('SessionStorageManager', () => {
     jest.mock('./env-variables.js', () => ({
       WORKOS_REDIRECT_URI: 'https://example.com',
       WORKOS_COOKIE_MAX_AGE: undefined,
-      WORKOW_COOKIE_PASSWORD: 'a really long password that fits the minimum length requirements',
+      WORKOS_COOKIE_PASSWORD: 'a really long password that fits the minimum length requirements',
     }));
     storage = new SessionStorageManager();
   });
@@ -97,7 +97,7 @@ describe('SessionStorageManager', () => {
       jest.mock('./env-variables.js', () => ({
         WORKOS_REDIRECT_URI: 'https://example.com',
         WORKOS_COOKIE_MAX_AGE: 3600,
-        WORKOW_COOKIE_PASSWORD: 'a really long password that fits the minimum length requirements',
+        WORKOS_COOKIE_PASSWORD: 'a really long password that fits the minimum length requirements',
       }));
       const { cookieName, getSession, commitSession, destroySession } = await storage.getSessionStorage();
       expect(cookieName).toBe('wos-session');
