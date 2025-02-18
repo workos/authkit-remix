@@ -46,7 +46,7 @@ describe('SessionStorageManager', () => {
       // depending on which call actually created the storage
     });
 
-    it('configures a passed in storafe option', async () => {
+    it('configures a passed in storage option', async () => {
       const redirectUrl = new URL('https://example.com/');
       const isSecureProtocol = redirectUrl.protocol === 'https:';
       const cookie = createCookie('_cookie', {
