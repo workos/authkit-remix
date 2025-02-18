@@ -1,4 +1,4 @@
-import { createCookie, createMemorySessionStorage } from '@remix-run/node';
+import { createCookie, createCookieSessionStorage, createMemorySessionStorage } from '@remix-run/node';
 import { SessionStorageManager, errors } from './sessionStorage.js';
 
 describe('SessionStorageManager', () => {
@@ -81,29 +81,70 @@ describe('SessionStorageManager', () => {
   });
 
   describe('storageManager', () => {
-    beforeEach(() => {
-      storage.configure();
-    });
+    type CreateCookieSessionStorageType = (typeof import('@remix-run/node'))['createCookieSessionStorage'];
+    let createCookieSessionStorage: jest.MockedFunction<CreateCookieSessionStorageType>;
 
-    it('should create a cookie session storage with undefined MAX_AGE', async () => {
+    async function mockWithEnvVariables(variables?: Record<string, string | undefined>) {
+      jest.resetModules();
+
+      jest.doMock('./env-variables.js', () => ({
+        WORKOS_REDIRECT_URI: 'https://example.com',
+        WORKOS_COOKIE_MAX_AGE: '',
+        WORKOS_COOKIE_PASSWORD: 'a really long password that fits the minimum length requirements',
+        ...variables,
+      }));
+
+      // Mock first, before any imports
+      jest.doMock('@remix-run/node', () => ({
+        ...jest.requireActual('@remix-run/node'),
+        createCookieSessionStorage: jest.fn().mockReturnValue({
+          getSession: jest.fn(),
+          commitSession: jest.fn(),
+          destroySession: jest.fn(),
+        }),
+      }));
+
+      createCookieSessionStorage = (await import('@remix-run/node'))
+        .createCookieSessionStorage as jest.MockedFunction<CreateCookieSessionStorageType>;
+
+      const { SessionStorageManager } = await import('./sessionStorage.js');
+      storage = new SessionStorageManager();
+      storage.configure();
+      return storage;
+    }
+
+    it('should create a cookie session storage with default MAX_AGE', async () => {
+      const storage = await mockWithEnvVariables();
       const { cookieName, getSession, commitSession, destroySession } = await storage.getSessionStorage();
       expect(cookieName).toBe('wos-session');
       expect(getSession).toBeDefined();
       expect(commitSession).toBeDefined();
       expect(destroySession).toBeDefined();
+      expect(createCookieSessionStorage).toHaveBeenCalledWith({
+        cookie: expect.objectContaining({
+          name: 'wos-session',
+          maxAge: 34560000, // 400 days
+        }),
+      });
     });
 
     it('should create a cookie session storage with defined MAX_AGE', async () => {
-      jest.mock('./env-variables.js', () => ({
+      const storage = await mockWithEnvVariables({
         WORKOS_REDIRECT_URI: 'https://example.com',
-        WORKOS_COOKIE_MAX_AGE: 3600,
+        WORKOS_COOKIE_MAX_AGE: '3600',
         WORKOS_COOKIE_PASSWORD: 'a really long password that fits the minimum length requirements',
-      }));
+      });
       const { cookieName, getSession, commitSession, destroySession } = await storage.getSessionStorage();
       expect(cookieName).toBe('wos-session');
       expect(getSession).toBeDefined();
       expect(commitSession).toBeDefined();
       expect(destroySession).toBeDefined();
+      expect(createCookieSessionStorage).toHaveBeenCalledWith({
+        cookie: expect.objectContaining({
+          name: 'wos-session',
+          maxAge: 3600,
+        }),
+      });
     });
   });
 
@@ -126,7 +167,7 @@ describe('SessionStorageManager', () => {
     });
 
     it('should create a cookie session storage with undefined MAX_AGE', async () => {
-      configureSessionStorage();
+      await configureSessionStorage();
 
       const { cookieName, getSession, commitSession, destroySession } = await getSessionStorage();
       expect(cookieName).toBe('wos-session');
