@@ -6,10 +6,9 @@ import {
   WORKOS_COOKIE_NAME,
 } from './env-variables.js';
 
-interface SessionStorageConfig {
-  storage?: SessionStorage;
-  cookieName?: string;
-}
+type SessionStorageConfig = { storage?: never; cookieName?: string } | { storage: SessionStorage; cookieName: string };
+
+const DEFAULT_COOKIE_NAME = WORKOS_COOKIE_NAME || 'wos-session';
 
 export const errors = {
   configureSessionStorage:
@@ -25,11 +24,10 @@ export class SessionStorageManager {
   /**
    * The default cookie name used for storing the session id.
    */
-  static readonly DEFAULT_COOKIE_NAME = 'wos-session';
 
   private storage: SessionStorage | null = null;
   private configPromise: Promise<void> | null = null;
-  private cookieName: string = SessionStorageManager.DEFAULT_COOKIE_NAME;
+  private cookieName: string = DEFAULT_COOKIE_NAME;
 
   async configure(config: SessionStorageConfig = {}) {
     if (!this.configPromise) {
@@ -58,13 +56,13 @@ export class SessionStorageManager {
     return { ...storage, cookieName };
   }
 
-  private createSessionStorage({ storage, cookieName }: SessionStorageConfig = {}): SessionStorage {
-    if (storage) {
-      return storage;
-    }
-
+  private createSessionStorage({ storage, cookieName }: SessionStorageConfig): SessionStorage {
     if (cookieName) {
       this.cookieName = cookieName;
+    }
+
+    if (storage) {
+      return storage;
     }
 
     const cookieOptions = {
@@ -81,7 +79,7 @@ export class SessionStorageManager {
     const redirectUrl = new URL(WORKOS_REDIRECT_URI);
     const isSecureProtocol = redirectUrl.protocol === 'https:';
     return {
-      name: WORKOS_COOKIE_NAME || SessionStorageManager.DEFAULT_COOKIE_NAME,
+      name: this.cookieName,
       path: '/',
       httpOnly: true,
       secure: isSecureProtocol,

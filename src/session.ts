@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs, SessionData, TypedResponse } from '@remix-run/node';
 import { json, redirect } from '@remix-run/node';
-import { WORKOS_CLIENT_ID, WORKOS_COOKIE_PASSWORD } from './env-variables.js';
+import { WORKOS_CLIENT_ID, WORKOS_COOKIE_NAME, WORKOS_COOKIE_PASSWORD } from './env-variables.js';
 import { getAuthorizationUrl } from './get-authorization-url.js';
 import type { AccessToken, AuthKitLoaderOptions, AuthorizedData, Session, UnauthorizedData } from './interfaces.js';
 import { workos } from './workos.js';
@@ -123,7 +123,8 @@ async function authkitLoader<Data = unknown>(
     cookie,
   } = typeof loaderOrOptions === 'object' ? loaderOrOptions : options;
 
-  const { getSession, destroySession } = await configureSessionStorage({ storage, cookieName: cookie?.name });
+  const cookieName = cookie?.name ?? WORKOS_COOKIE_NAME ?? 'wos-session';
+  const { getSession, destroySession } = await configureSessionStorage({ storage, cookieName });
 
   const { request } = loaderArgs;
   const session = await updateSession(request, debug);

@@ -40,12 +40,19 @@ export interface GetAuthURLOptions {
   returnPathname?: string;
 }
 
-export interface AuthKitLoaderOptions {
+export type AuthKitLoaderOptions = {
   ensureSignedIn?: boolean;
   debug?: boolean;
-  storage?: SessionStorage;
-  cookie?: SessionIdStorageStrategy['cookie'];
-}
+} & (
+  | {
+      storage?: never;
+      cookie?: SessionIdStorageStrategy['cookie'];
+    }
+  | {
+      storage: SessionStorage;
+      cookie: SessionIdStorageStrategy['cookie'];
+    }
+);
 
 export interface AuthorizedData {
   user: User;

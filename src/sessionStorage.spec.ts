@@ -67,7 +67,7 @@ describe('SessionStorageManager', () => {
         storage: createMemorySessionStorage({ cookie }),
         cookieName: '_cookie',
       });
-      expect(cookieName).toBe('wos-session');
+      expect(cookieName).toBe('_cookie');
       expect(getSession).toBeDefined();
       expect(commitSession).toBeDefined();
       expect(destroySession).toBeDefined();
