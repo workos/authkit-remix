@@ -1,26 +1,28 @@
 import { LoaderFunctionArgs, Session as RemixSession, redirect } from '@remix-run/node';
+import { AuthenticationResponse } from '@workos-inc/node';
 import * as ironSession from 'iron-session';
-import * as cookie from './cookie.js';
+import * as jose from 'jose';
+import {
+  configureSessionStorage as configureSessionStorageMock,
+  getSessionStorage as getSessionStorageMock,
+} from './sessionStorage.js';
 import { WORKOS_COOKIE_PASSWORD } from './env-variables.js';
 import { Session } from './interfaces.js';
-import { encryptSession, terminateSession, authkitLoader } from './session.js';
-import { workos } from './workos.js';
-import * as jose from 'jose';
-import { AuthenticationResponse } from '@workos-inc/node';
+import { authkitLoader, encryptSession, terminateSession } from './session.js';
 import { assertIsResponse } from './test-utils/test-helpers.js';
+import { workos } from './workos.js';
 
-const getSession = jest.mocked(cookie.getSession);
-const destroySession = jest.mocked(cookie.destroySession);
 const unsealData = jest.mocked(ironSession.unsealData);
 const sealData = jest.mocked(ironSession.sealData);
 const getLogoutUrl = jest.mocked(workos.userManagement.getLogoutUrl);
 const authenticateWithRefreshToken = jest.mocked(workos.userManagement.authenticateWithRefreshToken);
+const getSessionStorage = jest.mocked(getSessionStorageMock);
+const configureSessionStorage = jest.mocked(configureSessionStorageMock);
 const jwtVerify = jest.mocked(jose.jwtVerify);
 
-jest.mock('./cookie', () => ({
-  getSession: jest.fn(),
-  destroySession: jest.fn().mockResolvedValue('destroyed-session-cookie'),
-  commitSession: jest.fn(),
+jest.mock('./sessionStorage.js', () => ({
+  configureSessionStorage: jest.fn(),
+  getSessionStorage: jest.fn(),
 }));
 
 jest.mock('./workos.js', () => ({
@@ -67,6 +69,30 @@ describe('session', () => {
         Cookie: cookie,
       }),
     });
+
+  let getSession: jest.Mock;
+  let destroySession: jest.Mock;
+  let commitSession: jest.Mock;
+
+  beforeEach(async () => {
+    getSession = jest.fn();
+    destroySession = jest.fn().mockResolvedValue('destroyed-session-cookie');
+    commitSession = jest.fn();
+
+    getSessionStorage.mockResolvedValue({
+      cookieName: 'wos-cookie',
+      getSession,
+      destroySession,
+      commitSession,
+    });
+
+    configureSessionStorage.mockResolvedValue({
+      cookieName: 'wos-cookie',
+      getSession,
+      destroySession,
+      commitSession,
+    });
+  });
 
   describe('encryptSession', () => {
     it('should encrypt session data with correct parameters', async () => {
@@ -371,7 +397,7 @@ describe('session', () => {
         };
         unsealData.mockResolvedValue(expiredSessionData);
         sealData.mockResolvedValue('new-encrypted-jwt');
-        (cookie.commitSession as jest.Mock).mockResolvedValue('new-session-cookie');
+        commitSession.mockResolvedValue('new-session-cookie');
 
         // Token verification fails
         jwtVerify.mockRejectedValue(new Error('Token expired'));

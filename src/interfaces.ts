@@ -1,4 +1,5 @@
-import { OauthTokens, User } from '@workos-inc/node';
+import type { SessionStorage, SessionIdStorageStrategy } from '@remix-run/node';
+import type { OauthTokens, User } from '@workos-inc/node';
 
 export interface HandleAuthOptions {
   returnPathname?: string;
@@ -39,10 +40,19 @@ export interface GetAuthURLOptions {
   returnPathname?: string;
 }
 
-export interface AuthKitLoaderOptions {
+export type AuthKitLoaderOptions = {
   ensureSignedIn?: boolean;
   debug?: boolean;
-}
+} & (
+  | {
+      storage?: never;
+      cookie?: SessionIdStorageStrategy['cookie'];
+    }
+  | {
+      storage: SessionStorage;
+      cookie: SessionIdStorageStrategy['cookie'];
+    }
+);
 
 export interface AuthorizedData {
   user: User;

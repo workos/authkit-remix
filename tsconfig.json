@@ -1,9 +1,10 @@
 {
+  "$schema": "http://json.schemastore.org/tsconfig",
   "compilerOptions": {
-    "target": "ES2018",
-    "lib": ["DOM", "ESNext", "DOM.Iterable"],
+    "target": "ES2021",
+    "lib": ["DOM", "ES2021", "DOM.Iterable"],
     "jsx": "react",
-    "module": "ES2020",
+    "module": "Node16",
     "moduleResolution": "Node",
     "sourceMap": true,
     "declaration": true,
@@ -14,5 +15,6 @@
     "strict": true,
     "alwaysStrict": true,
     "skipLibCheck": true
-  }
+  },
+  "exclude": ["**/*.spec.ts", "**/*.spec.tsx", "jest.config.ts", "jest.setup.ts", "/dist/**/*"]
 }

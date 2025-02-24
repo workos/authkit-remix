@@ -1,18 +1,19 @@
-import { json, redirect } from '@remix-run/node';
 import type { LoaderFunctionArgs, SessionData, TypedResponse } from '@remix-run/node';
-import { WORKOS_CLIENT_ID, WORKOS_COOKIE_PASSWORD } from './env-variables.js';
-import type { AccessToken, AuthorizedData, UnauthorizedData, AuthKitLoaderOptions, Session } from './interfaces.js';
-import { getSession, destroySession, commitSession } from './cookie.js';
+import { json, redirect } from '@remix-run/node';
+import { WORKOS_CLIENT_ID, WORKOS_COOKIE_NAME, WORKOS_COOKIE_PASSWORD } from './env-variables.js';
 import { getAuthorizationUrl } from './get-authorization-url.js';
+import type { AccessToken, AuthKitLoaderOptions, AuthorizedData, Session, UnauthorizedData } from './interfaces.js';
 import { workos } from './workos.js';
 
 import { sealData, unsealData } from 'iron-session';
-import { jwtVerify, createRemoteJWKSet, decodeJwt } from 'jose';
+import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
+import { configureSessionStorage, getSessionStorage } from './sessionStorage.js';
 
 const JWKS = createRemoteJWKSet(new URL(workos.userManagement.getJwksUrl(WORKOS_CLIENT_ID)));
 
 async function updateSession(request: Request, debug: boolean) {
   const session = await getSessionFromCookie(request.headers.get('Cookie') as string);
+  const { commitSession, getSession, destroySession } = await getSessionStorage();
 
   // If no session, just continue
   if (!session) {
@@ -115,7 +116,15 @@ async function authkitLoader<Data = unknown>(
   options: AuthKitLoaderOptions = {},
 ) {
   const loader = typeof loaderOrOptions === 'function' ? loaderOrOptions : undefined;
-  const { ensureSignedIn = false, debug = false } = typeof loaderOrOptions === 'object' ? loaderOrOptions : options;
+  const {
+    ensureSignedIn = false,
+    debug = false,
+    storage,
+    cookie,
+  } = typeof loaderOrOptions === 'object' ? loaderOrOptions : options;
+
+  const cookieName = cookie?.name ?? WORKOS_COOKIE_NAME ?? 'wos-session';
+  const { getSession, destroySession } = await configureSessionStorage({ storage, cookieName });
 
   const { request } = loaderArgs;
   const session = await updateSession(request, debug);
@@ -215,6 +224,7 @@ async function handleAuthLoader(
 }
 
 async function terminateSession(request: Request) {
+  const { getSession, destroySession } = await getSessionStorage();
   const encryptedSession = await getSession(request.headers.get('Cookie'));
   const { accessToken } = (await getSessionFromCookie(
     request.headers.get('Cookie') as string,
@@ -257,6 +267,7 @@ function getClaimsFromAccessToken(accessToken: string) {
 }
 
 async function getSessionFromCookie(cookie: string, session?: SessionData) {
+  const { getSession } = await getSessionStorage();
   if (!session) {
     session = await getSession(cookie);
   }
@@ -286,4 +297,4 @@ function getReturnPathname(url: string): string {
   return `${newUrl.pathname}${newUrl.searchParams.size > 0 ? '?' + newUrl.searchParams.toString() : ''}`;
 }
 
-export { encryptSession, terminateSession, authkitLoader };
+export { authkitLoader, encryptSession, terminateSession };
