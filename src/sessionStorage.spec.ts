@@ -86,11 +86,11 @@ describe('SessionStorageManager', () => {
 
     async function mockWithConfig(variables?: Record<string, any>) {
       jest.resetModules();
+
       const { configure } = await import('./config.js');
 
       configure({
         redirectUri: 'https://example.com',
-        cookieMaxAge: '',
         cookiePassword: 'a really long password that fits the minimum length requirements',
         ...variables,
       });
@@ -129,7 +129,7 @@ describe('SessionStorageManager', () => {
       });
     });
 
-    it('should create a cookie session storage with defined MAX_AGE', async () => {
+    it('should create a cookie session storage with defined max age', async () => {
       const storage = await mockWithConfig({
         redirecetUri: 'https://example.com',
         cookieMaxAge: 3600,

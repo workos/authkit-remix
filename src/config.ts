@@ -40,7 +40,6 @@ const defaultSource: ValueSource = (key: string): string | undefined => {
 
 let configValues: Partial<AuthKitConfig> = {};
 let valueSource: ValueSource = defaultSource;
-let isConfigured = false;
 
 /**
  * Configure AuthKit with a custom value source.
@@ -75,10 +74,6 @@ export function configure(config: Partial<AuthKitConfig>): void;
  */
 export function configure(config: Partial<AuthKitConfig>, source: ValueSource): void;
 export function configure(configOrSource: Partial<AuthKitConfig> | ValueSource, source?: ValueSource): void {
-  if (isConfigured) {
-    console.warn('AuthKit has already been configured. Further configurations will be merged.');
-  }
-
   if (typeof configOrSource === 'function') {
     valueSource = configOrSource;
   } else if (typeof configOrSource === 'object' && !source) {
@@ -92,15 +87,15 @@ export function configure(configOrSource: Partial<AuthKitConfig> | ValueSource, 
   if (configValues.cookiePassword && configValues.cookiePassword.length < 32) {
     throw new Error('cookiePassword must be at least 32 characters long');
   }
-
-  isConfigured = true;
 }
 
 /**
- * Get configuration value prioritizing:
- * 1. Environment variables from valueSource
- * 2. Programmatically provided values in configValues
- * 3. Default values for optional settings
+ * Get a configuration value by key.
+ * This function will first check environment variables, then programmatically provided config,
+ * and finally fall back to defaults for optional settings.
+ * If a required setting is missing, an error will be thrown.
+ * @param key The configuration key
+ * @returns The configuration value
  */
 export function getConfig<K extends keyof AuthKitConfig>(key: K): AuthKitConfig[K] {
   // First check environment variables
@@ -114,7 +109,7 @@ export function getConfig<K extends keyof AuthKitConfig>(key: K): AuthKitConfig[
   }
 
   // If environment variable exists, use it
-  if (envValue !== undefined && envValue !== null && envValue !== '') {
+  if (envValue != null) {
     // Convert string values to appropriate types
     if (key === 'apiHttps' && typeof envValue === 'string') {
       return (envValue === 'true') as AuthKitConfig[K];

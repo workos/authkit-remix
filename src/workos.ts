@@ -15,7 +15,7 @@ export const getWorkOS = lazy(() => {
 
   const options = {
     apiHostname,
-    https: apiHttps ?? true,
+    https: apiHttps,
     port: apiPort,
     appInfo: {
       name: 'authkit-remix',

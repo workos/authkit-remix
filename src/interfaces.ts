@@ -111,19 +111,19 @@ export interface AuthKitConfig {
    * The hostname of the API to use
    * Equivalent to the WORKOS_API_HOSTNAME environment variable
    */
-  apiHostname: string;
+  apiHostname?: string;
 
   /**
    * Whether to use HTTPS for API requests
    * Equivalent to the WORKOS_API_HTTPS environment variable
    */
-  apiHttps?: boolean;
+  apiHttps: boolean;
 
   /**
    * The port to use for the API
    * Equivalent to the WORKOS_API_PORT environment variable
    */
-  apiPort: number;
+  apiPort?: number;
 
   /**
    * The maximum age of the session cookie in seconds
