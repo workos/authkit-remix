@@ -6,12 +6,32 @@ import {
   configureSessionStorage as configureSessionStorageMock,
   getSessionStorage as getSessionStorageMock,
 } from './sessionStorage.js';
-import { WORKOS_COOKIE_PASSWORD } from './env-variables.js';
 import { Session } from './interfaces.js';
 import { authkitLoader, encryptSession, terminateSession } from './session.js';
 import { assertIsResponse } from './test-utils/test-helpers.js';
-import { workos } from './workos.js';
+import { getWorkOS } from './workos.js';
+import { getConfig } from './config.js';
 
+jest.mock('./sessionStorage.js', () => ({
+  configureSessionStorage: jest.fn(),
+  getSessionStorage: jest.fn(),
+}));
+
+// Mock dependencies
+const fakeWorkosInstance = {
+  userManagement: {
+    getAuthorizationUrl: jest.fn().mockResolvedValue('https://auth.workos.com/oauth/authorize'),
+    getLogoutUrl: jest.fn(({ sessionId }) => `https://auth.workos.com/logout/${sessionId}`),
+    getJwksUrl: jest.fn((clientId: string) => `https://auth.workos.com/oauth/jwks/${clientId}`),
+    authenticateWithRefreshToken: jest.fn(),
+  },
+};
+
+jest.mock('./workos.js', () => ({
+  getWorkOS: jest.fn(() => fakeWorkosInstance),
+}));
+
+const workos = getWorkOS();
 const unsealData = jest.mocked(ironSession.unsealData);
 const sealData = jest.mocked(ironSession.sealData);
 const getLogoutUrl = jest.mocked(workos.userManagement.getLogoutUrl);
@@ -19,22 +39,6 @@ const authenticateWithRefreshToken = jest.mocked(workos.userManagement.authentic
 const getSessionStorage = jest.mocked(getSessionStorageMock);
 const configureSessionStorage = jest.mocked(configureSessionStorageMock);
 const jwtVerify = jest.mocked(jose.jwtVerify);
-
-jest.mock('./sessionStorage.js', () => ({
-  configureSessionStorage: jest.fn(),
-  getSessionStorage: jest.fn(),
-}));
-
-jest.mock('./workos.js', () => ({
-  workos: {
-    userManagement: {
-      getAuthorizationUrl: jest.fn().mockResolvedValue('https://auth.workos.com/oauth/authorize'),
-      getLogoutUrl: jest.fn(({ sessionId }) => `https://auth.workos.com/logout/${sessionId}`),
-      getJwksUrl: jest.fn((clientId: string) => `https://auth.workos.com/oauth/jwks/${clientId}`),
-      authenticateWithRefreshToken: jest.fn(),
-    },
-  },
-}));
 
 jest.mock('jose', () => ({
   createRemoteJWKSet: jest.fn(),
@@ -120,7 +124,7 @@ describe('session', () => {
 
       expect(result).toBe('encrypted-data');
       expect(sealData).toHaveBeenCalledWith(mockSession, {
-        password: WORKOS_COOKIE_PASSWORD,
+        password: getConfig('cookiePassword'),
         ttl: 0,
       });
       expect(sealData).toHaveBeenCalledTimes(1);

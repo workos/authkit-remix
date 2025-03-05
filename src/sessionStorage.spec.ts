@@ -1,16 +1,16 @@
 import { createCookie, createMemorySessionStorage } from '@remix-run/node';
 import { SessionStorageManager, errors } from './sessionStorage.js';
+import { configure } from './config.js';
 
 describe('SessionStorageManager', () => {
   let storage: SessionStorageManager;
 
   beforeEach(() => {
     jest.resetModules();
-    jest.mock('./env-variables.js', () => ({
-      WORKOS_REDIRECT_URI: 'https://example.com',
-      WORKOS_COOKIE_MAX_AGE: undefined,
-      WORKOS_COOKIE_PASSWORD: 'a really long password that fits the minimum length requirements',
-    }));
+    configure({
+      redirectUri: 'https://example.com',
+      cookiePassword: 'a really long password that fits the minimum length requirements',
+    });
     storage = new SessionStorageManager();
   });
 
@@ -84,15 +84,16 @@ describe('SessionStorageManager', () => {
     type CreateCookieSessionStorageType = (typeof import('@remix-run/node'))['createCookieSessionStorage'];
     let createCookieSessionStorage: jest.MockedFunction<CreateCookieSessionStorageType>;
 
-    async function mockWithEnvVariables(variables?: Record<string, string | undefined>) {
+    async function mockWithConfig(variables?: Record<string, any>) {
       jest.resetModules();
+      const { configure } = await import('./config.js');
 
-      jest.doMock('./env-variables.js', () => ({
-        WORKOS_REDIRECT_URI: 'https://example.com',
-        WORKOS_COOKIE_MAX_AGE: '',
-        WORKOS_COOKIE_PASSWORD: 'a really long password that fits the minimum length requirements',
+      configure({
+        redirectUri: 'https://example.com',
+        cookieMaxAge: '',
+        cookiePassword: 'a really long password that fits the minimum length requirements',
         ...variables,
-      }));
+      });
 
       // Mock first, before any imports
       jest.doMock('@remix-run/node', () => ({
@@ -114,7 +115,7 @@ describe('SessionStorageManager', () => {
     }
 
     it('should create a cookie session storage with default MAX_AGE', async () => {
-      const storage = await mockWithEnvVariables();
+      const storage = await mockWithConfig();
       const { cookieName, getSession, commitSession, destroySession } = await storage.getSessionStorage();
       expect(cookieName).toBe('wos-session');
       expect(getSession).toBeDefined();
@@ -129,10 +130,10 @@ describe('SessionStorageManager', () => {
     });
 
     it('should create a cookie session storage with defined MAX_AGE', async () => {
-      const storage = await mockWithEnvVariables({
-        WORKOS_REDIRECT_URI: 'https://example.com',
-        WORKOS_COOKIE_MAX_AGE: '3600',
-        WORKOS_COOKIE_PASSWORD: 'a really long password that fits the minimum length requirements',
+      const storage = await mockWithConfig({
+        redirecetUri: 'https://example.com',
+        cookieMaxAge: 3600,
+        cookiePassword: 'a really long password that fits the minimum length requirements',
       });
       const { cookieName, getSession, commitSession, destroySession } = await storage.getSessionStorage();
       expect(cookieName).toBe('wos-session');

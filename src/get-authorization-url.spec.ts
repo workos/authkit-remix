@@ -1,13 +1,13 @@
-import { WORKOS_CLIENT_ID, WORKOS_REDIRECT_URI } from './env-variables.js';
 import { getAuthorizationUrl } from './get-authorization-url.js';
+import { getConfig } from './config.js';
 
 describe('getAuthorizationUrl', () => {
   it('should generate a valid WorkOS authorization URL', async () => {
     const url = await getAuthorizationUrl();
 
     expect(url).toMatch(/^https:\/\/api\.workos\.com\/user_management\/authorize\?/);
-    expect(url).toContain(`client_id=${WORKOS_CLIENT_ID}`);
-    expect(url).toContain(`redirect_uri=${encodeURIComponent(WORKOS_REDIRECT_URI)}`);
+    expect(url).toContain(`client_id=${getConfig('clientId')}`);
+    expect(url).toContain(`redirect_uri=${encodeURIComponent(getConfig('redirectUri'))}`);
     expect(url).toContain('provider=authkit');
   });
 

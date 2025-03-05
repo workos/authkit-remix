@@ -129,7 +129,7 @@ export function getConfig<K extends keyof AuthKitConfig>(key: K): AuthKitConfig[
   }
 
   // Then check programmatically provided config
-  if (key in configValues && configValues[key] !== undefined) {
+  if (key in configValues && configValues[key] != undefined) {
     return configValues[key] as AuthKitConfig[K];
   }
 
