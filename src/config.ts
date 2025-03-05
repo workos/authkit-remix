@@ -8,7 +8,10 @@ type ValueSource = Record<string, any> | ((key: string) => any);
 export const DEFAULTS = {
   cookieName: 'wos-session',
   apiHttps: true,
-  cookieMaxAge: 60 * 60 * 24 * 400, // 400 days
+  // Defaults to 400 days, the maximum allowed by Chrome
+  // It's fine to have a long cookie expiry date as the access/refresh tokens
+  // act as the actual time-limited aspects of the session.
+  cookieMaxAge: 60 * 60 * 24 * 400,
   apiHostname: 'api.workos.com',
 } as const;
 
@@ -132,7 +135,7 @@ export function getConfig<K extends keyof AuthKitConfig>(key: K): AuthKitConfig[
 
   // Finally, check defaults for optional settings
   if (key in DEFAULTS) {
-    return DEFAULTS[key as keyof typeof DEFAULTS] as AuthKitConfig[K];
+    return DEFAULTS[key as keyof typeof DEFAULTS] as NonNullable<AuthKitConfig[K]>;
   }
 
   if (REQUIRED_KEYS.includes(key)) {

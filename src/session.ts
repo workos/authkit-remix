@@ -121,7 +121,7 @@ async function authkitLoader<Data = unknown>(
     cookie,
   } = typeof loaderOrOptions === 'object' ? loaderOrOptions : options;
 
-  const cookieName = cookie?.name ?? getConfig('cookieName') ?? 'wos-session';
+  const cookieName = cookie?.name ?? getConfig('cookieName');
   const { getSession, destroySession } = await configureSessionStorage({ storage, cookieName });
 
   const { request } = loaderArgs;

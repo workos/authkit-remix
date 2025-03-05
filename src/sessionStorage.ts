@@ -71,10 +71,7 @@ export class SessionStorageManager {
   private getDefaultCookieOptions(): SessionIdStorageStrategy['cookie'] {
     const redirectUrl = new URL(getConfig('redirectUri'));
     const isSecureProtocol = redirectUrl.protocol === 'https:';
-    // Defaults to 400 days, the maximum allowed by Chrome
-    // It's fine to have a long cookie expiry date as the access/refresh tokens
-    // act as the actual time-limited aspects of the session.
-    const maxAge = getConfig('cookieMaxAge') ?? 60 * 60 * 24 * 400;
+    const maxAge = getConfig('cookieMaxAge');
 
     return {
       name: this.cookieName,
