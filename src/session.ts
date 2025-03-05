@@ -1,15 +1,13 @@
 import type { LoaderFunctionArgs, SessionData, TypedResponse } from '@remix-run/node';
 import { json, redirect } from '@remix-run/node';
-import { WORKOS_CLIENT_ID, WORKOS_COOKIE_NAME, WORKOS_COOKIE_PASSWORD } from './env-variables.js';
 import { getAuthorizationUrl } from './get-authorization-url.js';
 import type { AccessToken, AuthKitLoaderOptions, AuthorizedData, Session, UnauthorizedData } from './interfaces.js';
-import { workos } from './workos.js';
+import { getWorkOS } from './workos.js';
 
 import { sealData, unsealData } from 'iron-session';
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
+import { getConfig, getRequiredConfig } from './config.js';
 import { configureSessionStorage, getSessionStorage } from './sessionStorage.js';
-
-const JWKS = createRemoteJWKSet(new URL(workos.userManagement.getJwksUrl(WORKOS_CLIENT_ID)));
 
 async function updateSession(request: Request, debug: boolean) {
   const session = await getSessionFromCookie(request.headers.get('Cookie') as string);
@@ -33,8 +31,8 @@ async function updateSession(request: Request, debug: boolean) {
     if (debug) console.log(`Session invalid. Refreshing access token that ends in ${session.accessToken.slice(-10)}`);
 
     // If the session is invalid (i.e. the access token has expired) attempt to re-authenticate with the refresh token
-    const { accessToken, refreshToken } = await workos.userManagement.authenticateWithRefreshToken({
-      clientId: WORKOS_CLIENT_ID,
+    const { accessToken, refreshToken } = await getWorkOS().userManagement.authenticateWithRefreshToken({
+      clientId: getRequiredConfig('clientId'),
       refreshToken: session.refreshToken,
     });
 
@@ -74,7 +72,7 @@ async function updateSession(request: Request, debug: boolean) {
 
 async function encryptSession(session: Session) {
   return sealData(session, {
-    password: WORKOS_COOKIE_PASSWORD,
+    password: getRequiredConfig('cookiePassword'),
     ttl: 0,
   });
 }
@@ -123,7 +121,7 @@ async function authkitLoader<Data = unknown>(
     cookie,
   } = typeof loaderOrOptions === 'object' ? loaderOrOptions : options;
 
-  const cookieName = cookie?.name ?? WORKOS_COOKIE_NAME ?? 'wos-session';
+  const cookieName = cookie?.name ?? getConfig('cookieName') ?? 'wos-session';
   const { getSession, destroySession } = await configureSessionStorage({ storage, cookieName });
 
   const { request } = loaderArgs;
@@ -238,7 +236,7 @@ async function terminateSession(request: Request) {
   };
 
   if (sessionId) {
-    return redirect(workos.userManagement.getLogoutUrl({ sessionId }), {
+    return redirect(getWorkOS().userManagement.getLogoutUrl({ sessionId }), {
       headers,
     });
   }
@@ -274,7 +272,7 @@ async function getSessionFromCookie(cookie: string, session?: SessionData) {
 
   if (session.has('jwt')) {
     return unsealData<Session>(session.get('jwt'), {
-      password: WORKOS_COOKIE_PASSWORD,
+      password: getRequiredConfig('cookiePassword'),
     });
   } else {
     return null;
@@ -282,6 +280,7 @@ async function getSessionFromCookie(cookie: string, session?: SessionData) {
 }
 
 async function verifyAccessToken(accessToken: string) {
+  const JWKS = createRemoteJWKSet(new URL(getWorkOS().userManagement.getJwksUrl(getRequiredConfig('clientId'))));
   try {
     await jwtVerify(accessToken, JWKS);
     return true;
