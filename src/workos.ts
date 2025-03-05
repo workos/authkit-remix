@@ -1,12 +1,12 @@
 import { WorkOS } from '@workos-inc/node';
-import { getConfig, getRequiredConfig } from './config.js';
+import { getConfig } from './config.js';
 import { lazy } from './utils.js';
 
 const VERSION = '0.7.1';
 
 export const getWorkOS = lazy(() => {
   // Get required API key from config
-  const apiKey = getRequiredConfig('apiKey');
+  const apiKey = getConfig('apiKey');
 
   // Get optional settings
   const apiHostname = getConfig('apiHostname');

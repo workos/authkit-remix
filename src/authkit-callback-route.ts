@@ -1,5 +1,5 @@
 import { LoaderFunctionArgs, json, redirect } from '@remix-run/node';
-import { getRequiredConfig } from './config.js';
+import { getConfig } from './config.js';
 import { HandleAuthOptions } from './interfaces.js';
 import { encryptSession } from './session.js';
 import { getSessionStorage } from './sessionStorage.js';
@@ -20,7 +20,7 @@ export function authLoader(options: HandleAuthOptions = {}) {
       try {
         const { accessToken, refreshToken, user, impersonator, oauthTokens } =
           await getWorkOS().userManagement.authenticateWithCode({
-            clientId: getRequiredConfig('clientId'),
+            clientId: getConfig('clientId'),
             code,
           });
 

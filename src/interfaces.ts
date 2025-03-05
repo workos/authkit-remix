@@ -86,26 +86,26 @@ export interface AuthKitConfig {
    * The WorkOS Client ID
    * Equivalent to the WORKOS_CLIENT_ID environment variable
    */
-  clientId?: string;
+  clientId: string;
 
   /**
    * The WorkOS API Key
    * Equivalent to the WORKOS_API_KEY environment variable
    */
-  apiKey?: string;
+  apiKey: string;
 
   /**
    * The redirect URI for the authentication callback
    * Equivalent to the WORKOS_REDIRECT_URI environment variable
    */
-  redirectUri?: string;
+  redirectUri: string;
 
   /**
    * The password used to encrypt the session cookie
    * Equivalent to the WORKOS_COOKIE_PASSWORD environment variable
    * Must be at least 32 characters long
    */
-  cookiePassword?: string;
+  cookiePassword: string;
 
   /**
    * The hostname of the API to use

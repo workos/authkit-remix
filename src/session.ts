@@ -6,7 +6,7 @@ import { getWorkOS } from './workos.js';
 
 import { sealData, unsealData } from 'iron-session';
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
-import { getConfig, getRequiredConfig } from './config.js';
+import { getConfig } from './config.js';
 import { configureSessionStorage, getSessionStorage } from './sessionStorage.js';
 
 async function updateSession(request: Request, debug: boolean) {
@@ -32,7 +32,7 @@ async function updateSession(request: Request, debug: boolean) {
 
     // If the session is invalid (i.e. the access token has expired) attempt to re-authenticate with the refresh token
     const { accessToken, refreshToken } = await getWorkOS().userManagement.authenticateWithRefreshToken({
-      clientId: getRequiredConfig('clientId'),
+      clientId: getConfig('clientId'),
       refreshToken: session.refreshToken,
     });
 
@@ -72,7 +72,7 @@ async function updateSession(request: Request, debug: boolean) {
 
 async function encryptSession(session: Session) {
   return sealData(session, {
-    password: getRequiredConfig('cookiePassword'),
+    password: getConfig('cookiePassword'),
     ttl: 0,
   });
 }
@@ -272,7 +272,7 @@ async function getSessionFromCookie(cookie: string, session?: SessionData) {
 
   if (session.has('jwt')) {
     return unsealData<Session>(session.get('jwt'), {
-      password: getRequiredConfig('cookiePassword'),
+      password: getConfig('cookiePassword'),
     });
   } else {
     return null;
@@ -280,7 +280,7 @@ async function getSessionFromCookie(cookie: string, session?: SessionData) {
 }
 
 async function verifyAccessToken(accessToken: string) {
-  const JWKS = createRemoteJWKSet(new URL(getWorkOS().userManagement.getJwksUrl(getRequiredConfig('clientId'))));
+  const JWKS = createRemoteJWKSet(new URL(getWorkOS().userManagement.getJwksUrl(getConfig('clientId'))));
   try {
     await jwtVerify(accessToken, JWKS);
     return true;

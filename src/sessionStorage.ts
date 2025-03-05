@@ -1,5 +1,5 @@
 import { createCookieSessionStorage, type SessionIdStorageStrategy, type SessionStorage } from '@remix-run/node';
-import { getConfig, getRequiredConfig } from './config';
+import { getConfig } from './config';
 
 type SessionStorageConfig = { storage?: never; cookieName?: string } | { storage: SessionStorage; cookieName: string };
 
@@ -69,7 +69,7 @@ export class SessionStorageManager {
   }
 
   private getDefaultCookieOptions(): SessionIdStorageStrategy['cookie'] {
-    const redirectUrl = new URL(getRequiredConfig('redirectUri'));
+    const redirectUrl = new URL(getConfig('redirectUri'));
     const isSecureProtocol = redirectUrl.protocol === 'https:';
     // Defaults to 400 days, the maximum allowed by Chrome
     // It's fine to have a long cookie expiry date as the access/refresh tokens
@@ -83,7 +83,7 @@ export class SessionStorageManager {
       secure: isSecureProtocol,
       sameSite: 'lax',
       maxAge,
-      secrets: [getRequiredConfig('cookiePassword')],
+      secrets: [getConfig('cookiePassword')],
     };
   }
 }
