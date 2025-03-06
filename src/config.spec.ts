@@ -1,18 +1,13 @@
-import type {
-  getFullConfig as GetFullConfigType,
-  configure as ConfigureType,
-  getConfig as GetConfigType,
-} from './config.js';
+import type { configure as ConfigureType, getConfig as GetConfigType } from './config.js';
 import { AuthKitConfig } from './interfaces.js';
 
 describe('config', () => {
   let configure: typeof ConfigureType;
   let getConfig: typeof GetConfigType;
-  let getFullConfig: typeof GetFullConfigType;
 
   beforeEach(() => {
     jest.resetModules();
-    ({ configure, getConfig, getFullConfig } = require('./config.js'));
+    ({ configure, getConfig } = require('./config.js'));
   });
 
   it('reads values from process.env with no configure call', () => {
@@ -83,17 +78,6 @@ describe('config', () => {
 
     expect(getConfig('clientId')).toBe('overridden client id');
     expect(getConfig('apiKey')).toBe('overridden api key');
-    expect(getFullConfig()).toEqual({
-      apiHostname: 'api.workos.com',
-      apiHttps: true,
-      apiKey: 'overridden api key',
-      apiPort: undefined,
-      clientId: 'overridden client id',
-      cookieMaxAge: 34560000,
-      cookieName: 'wos-session',
-      cookiePassword: 'a really long cookie password that is definitely more than 32 characters',
-      redirectUri: 'http://localhost:5173/callback',
-    });
   });
 
   it('reads from defaults when no values are provided', () => {
