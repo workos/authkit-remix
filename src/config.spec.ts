@@ -1,13 +1,18 @@
-import type { configure as ConfigureType, getConfig as getConfigType } from './config';
+import type {
+  getFullConfig as GetFullConfigType,
+  configure as ConfigureType,
+  getConfig as GetConfigType,
+} from './config';
 import { AuthKitConfig } from './interfaces';
 
 describe('config', () => {
   let configure: typeof ConfigureType;
-  let getConfig: typeof getConfigType;
+  let getConfig: typeof GetConfigType;
+  let getFullConfig: typeof GetFullConfigType;
 
   beforeEach(() => {
     jest.resetModules();
-    ({ configure, getConfig } = require('./config.js'));
+    ({ configure, getConfig, getFullConfig } = require('./config.js'));
   });
 
   it('reads values from process.env with no configure call', () => {
@@ -65,17 +70,30 @@ describe('config', () => {
   it('reads from provided config, falling back to provided source', () => {
     configure(
       {
-        clientId: 'client_1234567890',
+        clientId: 'overridden client id',
+        redirectUri: 'http://localhost:5173/callback',
+        cookiePassword: 'a really long cookie password that is definitely more than 32 characters',
       },
       (key) => {
         if (key === 'WORKOS_API_KEY') {
-          return 'sk_test_1234567890';
+          return 'overridden api key';
         }
       },
     );
 
-    expect(getConfig('clientId')).toBe('client_1234567890');
-    expect(getConfig('apiKey')).toBe('sk_test_1234567890');
+    expect(getConfig('clientId')).toBe('overridden client id');
+    expect(getConfig('apiKey')).toBe('overridden api key');
+    expect(getFullConfig()).toEqual({
+      apiHostname: 'api.workos.com',
+      apiHttps: true,
+      apiKey: 'overridden api key',
+      apiPort: undefined,
+      clientId: 'overridden client id',
+      cookieMaxAge: 34560000,
+      cookieName: 'wos-session',
+      cookiePassword: 'a really long cookie password that is definitely more than 32 characters',
+      redirectUri: 'http://localhost:5173/callback',
+    });
   });
 
   it('reads from defaults when no values are provided', () => {

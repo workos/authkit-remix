@@ -2,6 +2,8 @@ import type { AuthKitConfig } from './interfaces';
 
 type ValueSource = Record<string, any> | ((key: string) => any);
 
+const MODULE_ID = Math.random().toString(36).substring(2);
+
 /**
  * Default values for optional configuration settings
  */
@@ -138,4 +140,30 @@ export function getConfig<K extends keyof AuthKitConfig>(key: K): AuthKitConfig[
   }
 
   return undefined as AuthKitConfig[K];
+}
+
+/**
+ * Returns the complete current configuration with all values resolved
+ * according to priority (configured values, environment variables, defaults).
+ * This is useful for debugging or logging the effective configuration.
+ *
+ * Note: This function will throw an error if any required values are missing.
+ *
+ * @returns The complete effective configuration
+ */
+export function getFullConfig(): AuthKitConfig {
+  // Build the configuration object with explicit typing for each property
+  const config: AuthKitConfig = {
+    clientId: getConfig('clientId'),
+    apiKey: getConfig('apiKey'),
+    redirectUri: getConfig('redirectUri'),
+    cookiePassword: getConfig('cookiePassword'),
+    apiHttps: getConfig('apiHttps'),
+    cookieMaxAge: getConfig('cookieMaxAge'),
+    cookieName: getConfig('cookieName'),
+    apiHostname: getConfig('apiHostname'),
+    apiPort: getConfig('apiPort'),
+  };
+
+  return config;
 }
