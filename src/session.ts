@@ -1,5 +1,4 @@
-import type { LoaderFunctionArgs, SessionData, TypedResponse } from '@remix-run/node';
-import { json, redirect } from '@remix-run/node';
+import { data as json, redirect, type LoaderFunctionArgs, type SessionData } from 'react-router';
 import { getAuthorizationUrl } from './get-authorization-url.js';
 import type { AccessToken, AuthKitLoaderOptions, AuthorizedData, Session, UnauthorizedData } from './interfaces.js';
 import { getWorkOS } from './workos.js';
@@ -8,6 +7,12 @@ import { sealData, unsealData } from 'iron-session';
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
 import { getConfig } from './config.js';
 import { configureSessionStorage, getSessionStorage } from './sessionStorage.js';
+
+// must be a type since this is a subtype of response
+// interfaces must conform to the types they extend
+export type TypedResponse<T> = Response & {
+  json(): Promise<T>;
+};
 
 async function updateSession(request: Request, debug: boolean) {
   const session = await getSessionFromCookie(request.headers.get('Cookie') as string);

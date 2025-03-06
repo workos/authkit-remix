@@ -1,4 +1,4 @@
-import type { SessionStorage, SessionIdStorageStrategy } from '@remix-run/node';
+import type { SessionStorage, SessionIdStorageStrategy } from 'react-router';
 import type { OauthTokens, User } from '@workos-inc/node';
 
 export interface HandleAuthOptions {
