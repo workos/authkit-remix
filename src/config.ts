@@ -1,8 +1,7 @@
-import type { AuthKitConfig } from './interfaces';
+import type { AuthKitConfig } from './interfaces.js';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ValueSource = Record<string, any> | ((key: string) => any);
-
-const MODULE_ID = Math.random().toString(36).substring(2);
 
 /**
  * Default values for optional configuration settings
@@ -102,7 +101,7 @@ export function configure(configOrSource: Partial<AuthKitConfig> | ValueSource, 
 export function getConfig<K extends keyof AuthKitConfig>(key: K): AuthKitConfig[K] {
   // First check environment variables
   const envKey = getEnvironmentVariableName(key);
-  let envValue: any = undefined;
+  let envValue: AuthKitConfig[K] | undefined = undefined;
 
   if (typeof valueSource === 'function') {
     envValue = valueSource(envKey);

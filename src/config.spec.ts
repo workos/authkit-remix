@@ -2,8 +2,8 @@ import type {
   getFullConfig as GetFullConfigType,
   configure as ConfigureType,
   getConfig as GetConfigType,
-} from './config';
-import { AuthKitConfig } from './interfaces';
+} from './config.js';
+import { AuthKitConfig } from './interfaces.js';
 
 describe('config', () => {
   let configure: typeof ConfigureType;
@@ -97,7 +97,7 @@ describe('config', () => {
   });
 
   it('reads from defaults when no values are provided', () => {
-    configure((_key) => undefined);
+    configure(() => undefined);
 
     expect(getConfig('apiHttps')).toBe(true);
     expect(getConfig('apiHostname')).toBe('api.workos.com');
@@ -133,7 +133,7 @@ describe('config', () => {
 
   it('throws an error if required values are missing', () => {
     expect(() => {
-      configure((_key) => undefined);
+      configure(() => undefined);
       getConfig('apiKey');
     }).toThrow();
   });

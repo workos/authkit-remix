@@ -84,6 +84,7 @@ describe('SessionStorageManager', () => {
     type CreateCookieSessionStorageType = (typeof import('@remix-run/node'))['createCookieSessionStorage'];
     let createCookieSessionStorage: jest.MockedFunction<CreateCookieSessionStorageType>;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async function mockWithConfig(variables?: Record<string, any>) {
       jest.resetModules();
 

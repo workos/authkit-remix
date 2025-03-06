@@ -1,5 +1,5 @@
 import { createCookieSessionStorage, type SessionIdStorageStrategy, type SessionStorage } from '@remix-run/node';
-import { getConfig } from './config';
+import { getConfig } from './config.js';
 
 type SessionStorageConfig = { storage?: never; cookieName?: string } | { storage: SessionStorage; cookieName: string };
 
