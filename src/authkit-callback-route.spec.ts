@@ -1,5 +1,5 @@
 import type { LoaderFunction } from '@remix-run/node';
-import { workos as workosInstance } from '../src/workos.js';
+import { getWorkOS } from './workos.js';
 import { authLoader } from './authkit-callback-route.js';
 import {
   createRequestWithSearchParams,
@@ -9,19 +9,22 @@ import {
 import { configureSessionStorage } from './sessionStorage.js';
 
 // Mock dependencies
-jest.mock('../src/workos.js', () => ({
-  workos: {
-    userManagement: {
-      authenticateWithCode: jest.fn(),
-      getJwksUrl: jest.fn(() => 'https://api.workos.com/sso/jwks/client_1234567890'),
-    },
+const fakeWorkosInstance = {
+  userManagement: {
+    authenticateWithCode: jest.fn(),
+    getJwksUrl: jest.fn(() => 'https://api.workos.com/sso/jwks/client_1234567890'),
   },
+};
+
+jest.mock('./workos.js', () => ({
+  getWorkOS: jest.fn(() => fakeWorkosInstance),
 }));
 
 describe('authLoader', () => {
   let loader: LoaderFunction;
   let request: Request;
-  const workos = jest.mocked(workosInstance);
+  const workos = getWorkOS();
+  const authenticateWithCode = jest.mocked(workos.userManagement.authenticateWithCode);
 
   beforeAll(() => {
     // Silence console.error during tests
@@ -30,10 +33,8 @@ describe('authLoader', () => {
   });
 
   beforeEach(async () => {
-    jest.resetAllMocks();
-
     const mockAuthResponse = createAuthWithCodeResponse();
-    workos.userManagement.authenticateWithCode.mockResolvedValue(mockAuthResponse);
+    authenticateWithCode.mockResolvedValue(mockAuthResponse);
 
     loader = authLoader();
     const url = new URL('http://example.com/callback');
@@ -55,7 +56,7 @@ describe('authLoader', () => {
     });
 
     it('should handle authentication failure', async () => {
-      workos.userManagement.authenticateWithCode.mockRejectedValue(new Error('Auth failed'));
+      authenticateWithCode.mockRejectedValue(new Error('Auth failed'));
       request = createRequestWithSearchParams(request, { code: 'invalid-code' });
       const response = (await loader({ request, params: {}, context: {} })) as Response;
 
@@ -63,7 +64,7 @@ describe('authLoader', () => {
     });
 
     it('should handle authentication failure with string error', async () => {
-      workos.userManagement.authenticateWithCode.mockRejectedValue('Auth failed');
+      authenticateWithCode.mockRejectedValue('Auth failed');
       request = createRequestWithSearchParams(request, { code: 'invalid-code' });
       const response = (await loader({ request, params: {}, context: {} })) as Response;
 
@@ -141,7 +142,7 @@ describe('authLoader', () => {
 
   it('provides impersonator to onSuccess callback when provided', async () => {
     const onSuccess = jest.fn();
-    workos.userManagement.authenticateWithCode.mockResolvedValue(
+    authenticateWithCode.mockResolvedValue(
       createAuthWithCodeResponse({
         impersonator: {
           email: 'test@example.com',
@@ -162,7 +163,7 @@ describe('authLoader', () => {
 
   it('provides oauthTokens to onSuccess callback when provided', async () => {
     const onSuccess = jest.fn();
-    workos.userManagement.authenticateWithCode.mockResolvedValue(
+    authenticateWithCode.mockResolvedValue(
       createAuthWithCodeResponse({
         oauthTokens: {
           accessToken: 'access123',

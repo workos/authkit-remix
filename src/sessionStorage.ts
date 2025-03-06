@@ -1,14 +1,7 @@
 import { createCookieSessionStorage, type SessionIdStorageStrategy, type SessionStorage } from '@remix-run/node';
-import {
-  WORKOS_REDIRECT_URI,
-  WORKOS_COOKIE_MAX_AGE,
-  WORKOS_COOKIE_PASSWORD,
-  WORKOS_COOKIE_NAME,
-} from './env-variables.js';
+import { getConfig } from './config.js';
 
 type SessionStorageConfig = { storage?: never; cookieName?: string } | { storage: SessionStorage; cookieName: string };
-
-const DEFAULT_COOKIE_NAME = WORKOS_COOKIE_NAME || 'wos-session';
 
 export const errors = {
   configureSessionStorage:
@@ -27,7 +20,7 @@ export class SessionStorageManager {
 
   private storage: SessionStorage | null = null;
   private configPromise: Promise<void> | null = null;
-  private cookieName: string = DEFAULT_COOKIE_NAME;
+  private cookieName: string = getConfig('cookieName') || 'wos-session';
 
   async configure(config: SessionStorageConfig = {}) {
     if (!this.configPromise) {
@@ -76,19 +69,18 @@ export class SessionStorageManager {
   }
 
   private getDefaultCookieOptions(): SessionIdStorageStrategy['cookie'] {
-    const redirectUrl = new URL(WORKOS_REDIRECT_URI);
+    const redirectUrl = new URL(getConfig('redirectUri'));
     const isSecureProtocol = redirectUrl.protocol === 'https:';
+    const maxAge = getConfig('cookieMaxAge');
+
     return {
       name: this.cookieName,
       path: '/',
       httpOnly: true,
       secure: isSecureProtocol,
       sameSite: 'lax',
-      // Defaults to 400 days, the maximum allowed by Chrome
-      // It's fine to have a long cookie expiry date as the access/refresh tokens
-      // act as the actual time-limited aspects of the session.
-      maxAge: WORKOS_COOKIE_MAX_AGE ? parseInt(WORKOS_COOKIE_MAX_AGE, 10) : 60 * 60 * 24 * 400,
-      secrets: [WORKOS_COOKIE_PASSWORD],
+      maxAge,
+      secrets: [getConfig('cookiePassword')],
     };
   }
 }
