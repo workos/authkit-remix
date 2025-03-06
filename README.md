@@ -79,6 +79,10 @@ When retrieving configuration values, AuthKit follows this priority order:
 
 ### Available Configuration Options
 
+>[!NOTE]
+>
+>To print out the entire config, a `getFullConfig` function is provided for debugging purposes.
+
 |  Option |  Environment Variable |  Default |  Required |  Description |  
 | ---- | ---- | ---- | ---- | ----  |
 |  `clientId` |  `WORKOS_CLIENT_ID` |  - |  Yes |  Your WorkOS Client ID |  
