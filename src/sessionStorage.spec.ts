@@ -1,4 +1,4 @@
-import { createCookie, createMemorySessionStorage } from '@remix-run/node';
+import { createCookie, createMemorySessionStorage } from 'react-router';
 import { SessionStorageManager, errors } from './sessionStorage.js';
 import { configure } from './config.js';
 
@@ -81,7 +81,7 @@ describe('SessionStorageManager', () => {
   });
 
   describe('storageManager', () => {
-    type CreateCookieSessionStorageType = (typeof import('@remix-run/node'))['createCookieSessionStorage'];
+    type CreateCookieSessionStorageType = (typeof import('react-router'))['createCookieSessionStorage'];
     let createCookieSessionStorage: jest.MockedFunction<CreateCookieSessionStorageType>;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,8 +97,8 @@ describe('SessionStorageManager', () => {
       });
 
       // Mock first, before any imports
-      jest.doMock('@remix-run/node', () => ({
-        ...jest.requireActual('@remix-run/node'),
+      jest.doMock('react-router', () => ({
+        ...jest.requireActual('react-router'),
         createCookieSessionStorage: jest.fn().mockReturnValue({
           getSession: jest.fn(),
           commitSession: jest.fn(),
@@ -106,7 +106,7 @@ describe('SessionStorageManager', () => {
         }),
       }));
 
-      createCookieSessionStorage = (await import('@remix-run/node'))
+      createCookieSessionStorage = (await import('react-router'))
         .createCookieSessionStorage as jest.MockedFunction<CreateCookieSessionStorageType>;
 
       const { SessionStorageManager } = await import('./sessionStorage.js');

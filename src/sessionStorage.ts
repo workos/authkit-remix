@@ -1,4 +1,4 @@
-import { createCookieSessionStorage, type SessionIdStorageStrategy, type SessionStorage } from '@remix-run/node';
+import { createCookieSessionStorage, type SessionIdStorageStrategy, type SessionStorage } from 'react-router';
 import { getConfig } from './config.js';
 
 type SessionStorageConfig = { storage?: never; cookieName?: string } | { storage: SessionStorage; cookieName: string };

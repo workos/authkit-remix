@@ -1,4 +1,4 @@
-import type { LoaderFunction } from '@remix-run/node';
+import type { LoaderFunction } from 'react-router';
 import { getWorkOS } from './workos.js';
 import { authLoader } from './authkit-callback-route.js';
 import {

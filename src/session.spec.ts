@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs, Session as RemixSession, redirect } from '@remix-run/node';
+import { LoaderFunctionArgs, Session as RemixSession, redirect } from 'react-router';
 import { AuthenticationResponse } from '@workos-inc/node';
 import * as ironSession from 'iron-session';
 import * as jose from 'jose';
