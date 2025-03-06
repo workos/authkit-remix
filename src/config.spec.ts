@@ -25,6 +25,19 @@ describe('config', () => {
     expect(getConfig('apiKey')).toBe('sk_test_1234567890');
   });
 
+  it('reads env variables from the provided config', () => {
+    configure(
+      {},
+      {
+        WORKOS_CLIENT_ID: 'client_123456789',
+        WORKOS_API_KEY: 'sk_test_123456789',
+      },
+    );
+
+    expect(getConfig('clientId')).toBe('client_123456789');
+    expect(getConfig('apiKey')).toBe('sk_test_123456789');
+  });
+
   it('reads values from the provided config', () => {
     configure({
       clientId: 'client_1234567890',
