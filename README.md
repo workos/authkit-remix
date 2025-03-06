@@ -54,6 +54,10 @@ configure({
 
 For non-standard environments (like Deno or Edge functions), you can provide a custom environment variable source:
 
+> [!Warning]
+>
+>While this library includes support for custom environment sources that could theoretically work in non-Node.js runtimes like Deno or Edge functions, this functionality has not been extensively tested (yet). If you're planning to use AuthKit in these environments, you may encounter unexpected issues. We welcome feedback and contributions from users who test in these environments.
+
 ```typescript
 import { configure } from '@workos-inc/authkit-remix';
 
