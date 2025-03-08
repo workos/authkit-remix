@@ -1,4 +1,3 @@
-import type { LoaderFunction } from 'react-router';
 import { getWorkOS } from './workos.js';
 import { authLoader } from './authkit-callback-route.js';
 import {
@@ -7,6 +6,8 @@ import {
   assertIsResponse,
 } from './test-utils/test-helpers.js';
 import { configureSessionStorage } from './sessionStorage.js';
+import { isDataWithResponseInit } from './utils.js';
+import { DataWithResponseInit } from './interfaces.js';
 
 // Mock dependencies
 const fakeWorkosInstance = {
@@ -21,7 +22,7 @@ jest.mock('./workos.js', () => ({
 }));
 
 describe('authLoader', () => {
-  let loader: LoaderFunction;
+  let loader: ReturnType<typeof authLoader>;
   let request: Request;
   const workos = getWorkOS();
   const authenticateWithCode = jest.mocked(workos.userManagement.authenticateWithCode);
@@ -58,17 +59,19 @@ describe('authLoader', () => {
     it('should handle authentication failure', async () => {
       authenticateWithCode.mockRejectedValue(new Error('Auth failed'));
       request = createRequestWithSearchParams(request, { code: 'invalid-code' });
-      const response = (await loader({ request, params: {}, context: {} })) as Response;
+      const response = (await loader({ request, params: {}, context: {} })) as DataWithResponseInit<unknown>;
+      expect(isDataWithResponseInit(response)).toBeTruthy();
 
-      expect(response.status).toBe(500);
+      expect(response?.init?.status).toBe(500);
     });
 
     it('should handle authentication failure with string error', async () => {
       authenticateWithCode.mockRejectedValue('Auth failed');
       request = createRequestWithSearchParams(request, { code: 'invalid-code' });
-      const response = (await loader({ request, params: {}, context: {} })) as Response;
+      const response = (await loader({ request, params: {}, context: {} })) as DataWithResponseInit<unknown>;
+      expect(isDataWithResponseInit(response)).toBeTruthy();
 
-      expect(response.status).toBe(500);
+      expect(response?.init?.status).toBe(500);
     });
   });
 

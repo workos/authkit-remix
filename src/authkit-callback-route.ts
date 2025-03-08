@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs, data as json, redirect } from 'react-router';
+import { LoaderFunctionArgs, data, redirect } from 'react-router';
 import { getConfig } from './config.js';
 import { HandleAuthOptions } from './interfaces.js';
 import { encryptSession } from './session.js';
@@ -86,7 +86,7 @@ export function authLoader(options: HandleAuthOptions = {}) {
     }
 
     function errorResponse() {
-      return json(
+      return data(
         {
           error: {
             message: 'Something went wrong',

@@ -1,6 +1,13 @@
-import { data as json, redirect, type LoaderFunctionArgs, type SessionData } from 'react-router';
+import { data, redirect, type LoaderFunctionArgs, type SessionData } from 'react-router';
 import { getAuthorizationUrl } from './get-authorization-url.js';
-import type { AccessToken, AuthKitLoaderOptions, AuthorizedData, Session, UnauthorizedData } from './interfaces.js';
+import type {
+  AccessToken,
+  AuthKitLoaderOptions,
+  AuthorizedData,
+  DataWithResponseInit,
+  Session,
+  UnauthorizedData,
+} from './interfaces.js';
 import { getWorkOS } from './workos.js';
 
 import { sealData, unsealData } from 'iron-session';
@@ -94,24 +101,24 @@ type AuthorizedAuthLoader<Data> = (args: LoaderFunctionArgs & { auth: Authorized
 async function authkitLoader(
   loaderArgs: LoaderFunctionArgs,
   options: AuthKitLoaderOptions & { ensureSignedIn: true },
-): Promise<TypedResponse<AuthorizedData>>;
+): Promise<DataWithResponseInit<AuthorizedData> | Response>;
 
 async function authkitLoader(
   loaderArgs: LoaderFunctionArgs,
   options?: AuthKitLoaderOptions,
-): Promise<TypedResponse<AuthorizedData | UnauthorizedData>>;
+): Promise<DataWithResponseInit<AuthorizedData | UnauthorizedData>>;
 
 async function authkitLoader<Data = unknown>(
   loaderArgs: LoaderFunctionArgs,
   loader: AuthorizedAuthLoader<Data>,
   options: AuthKitLoaderOptions & { ensureSignedIn: true },
-): Promise<TypedResponse<Data & AuthorizedData>>;
+): Promise<DataWithResponseInit<Data & AuthorizedData>>;
 
 async function authkitLoader<Data = unknown>(
   loaderArgs: LoaderFunctionArgs,
   loader: AuthLoader<Data>,
   options?: AuthKitLoaderOptions,
-): Promise<TypedResponse<Data & (AuthorizedData | UnauthorizedData)>>;
+): Promise<DataWithResponseInit<Data & (AuthorizedData | UnauthorizedData)>>;
 
 async function authkitLoader<Data = unknown>(
   loaderArgs: LoaderFunctionArgs,
@@ -195,7 +202,7 @@ async function handleAuthLoader(
   session?: Session,
 ) {
   if (!loader) {
-    return json(auth, session ? { headers: { ...session.headers } } : undefined);
+    return data(auth, session ? { headers: { ...session.headers } } : undefined);
   }
 
   // If there's a custom loader, get the resulting data and return it with our
@@ -209,7 +216,7 @@ async function handleAuthLoader(
     }
 
     const newResponse = new Response(loaderResult.body, loaderResult);
-    const data = await newResponse.json();
+    const responseData = await newResponse.json();
 
     // Set the content type in case the user returned a Response instead of the
     // json helper method
@@ -218,12 +225,12 @@ async function handleAuthLoader(
       newResponse.headers.append('Set-Cookie', session.headers['Set-Cookie']);
     }
 
-    return json({ ...data, ...auth }, newResponse);
+    return data({ ...responseData, ...auth }, newResponse);
   }
 
   // If the loader returns a non-Response, assume it's a data object
   // istanbul ignore next
-  return json({ ...loaderResult, ...auth }, session ? { headers: { ...session.headers } } : undefined);
+  return data({ ...loaderResult, ...auth }, session ? { headers: { ...session.headers } } : undefined);
 }
 
 async function terminateSession(request: Request) {

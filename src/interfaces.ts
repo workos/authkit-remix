@@ -1,5 +1,7 @@
-import type { SessionStorage, SessionIdStorageStrategy } from 'react-router';
+import type { SessionStorage, SessionIdStorageStrategy, data } from 'react-router';
 import type { OauthTokens, User } from '@workos-inc/node';
+
+export type DataWithResponseInit<T> = ReturnType<typeof data<T>>;
 
 export interface HandleAuthOptions {
   returnPathname?: string;
