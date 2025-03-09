@@ -14,8 +14,7 @@ import { sealData, unsealData } from 'iron-session';
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
 import { getConfig } from './config.js';
 import { configureSessionStorage, getSessionStorage } from './sessionStorage.js';
-import { isResponse } from './utils.js';
-import { isRedirect } from '../dist/cjs/utils.js';
+import { isResponse, isRedirect } from './utils.js';
 
 // must be a type since this is a subtype of response
 // interfaces must conform to the types they extend
