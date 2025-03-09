@@ -38,7 +38,9 @@ export function isResponse(response: unknown): response is Response {
 }
 
 /**
- * Returns true if the data is a DataWithResponseInit object.
+ * Checks if the data is a DataWithResponseInit object.
+ * @param data - The data to check.
+ * @returns True if the data is a DataWithResponseInit object.
  */
 export function isDataWithResponseInit(data: unknown): data is DataWithResponseInit<unknown> {
   return (
