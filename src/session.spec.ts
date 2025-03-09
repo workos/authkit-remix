@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs, Session as RemixSession, redirect } from 'react-router';
+import { LoaderFunctionArgs, Session as ReactRouterSession, redirect } from 'react-router';
 import { AuthenticationResponse } from '@workos-inc/node';
 import * as ironSession from 'iron-session';
 import * as jose from 'jose';
@@ -72,7 +72,7 @@ jest.mock('iron-session', () => ({
 
 describe('session', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const createMockSession = (overrides?: Record<string, any>): RemixSession =>
+  const createMockSession = (overrides?: Record<string, any>): ReactRouterSession =>
     ({
       has: jest.fn(),
       get: jest.fn(),
@@ -82,7 +82,7 @@ describe('session', () => {
       id: 'test-session-id',
       data: {},
       ...overrides,
-    }) satisfies RemixSession;
+    }) satisfies ReactRouterSession;
 
   const createMockRequest = (cookie = 'test-cookie', url = 'http://example.com./some-path') =>
     new Request(url, {
