@@ -1,9 +1,9 @@
+import { LoaderFunctionArgs, json, redirect } from '@remix-run/node';
+import { getConfig } from './config.js';
 import { HandleAuthOptions } from './interfaces.js';
-import { WORKOS_CLIENT_ID } from './env-variables.js';
-import { workos } from './workos.js';
 import { encryptSession } from './session.js';
 import { getSessionStorage } from './sessionStorage.js';
-import { redirect, json, LoaderFunctionArgs } from '@remix-run/node';
+import { getWorkOS } from './workos.js';
 
 export function authLoader(options: HandleAuthOptions = {}) {
   return async function loader({ request }: LoaderFunctionArgs) {
@@ -19,8 +19,8 @@ export function authLoader(options: HandleAuthOptions = {}) {
     if (code) {
       try {
         const { accessToken, refreshToken, user, impersonator, oauthTokens } =
-          await workos.userManagement.authenticateWithCode({
-            clientId: WORKOS_CLIENT_ID,
+          await getWorkOS().userManagement.authenticateWithCode({
+            clientId: getConfig('clientId'),
             code,
           });
 

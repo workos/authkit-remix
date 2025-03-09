@@ -1,14 +1,14 @@
-import { workos } from './workos.js';
-import { WORKOS_CLIENT_ID, WORKOS_REDIRECT_URI } from './env-variables.js';
+import { getConfig } from './config.js';
 import { GetAuthURLOptions } from './interfaces.js';
+import { getWorkOS } from './workos.js';
 
 async function getAuthorizationUrl(options: GetAuthURLOptions = {}) {
   const { returnPathname, screenHint } = options;
 
-  return workos.userManagement.getAuthorizationUrl({
+  return getWorkOS().userManagement.getAuthorizationUrl({
     provider: 'authkit',
-    clientId: WORKOS_CLIENT_ID,
-    redirectUri: WORKOS_REDIRECT_URI,
+    clientId: getConfig('clientId'),
+    redirectUri: getConfig('redirectUri'),
     state: returnPathname ? btoa(JSON.stringify({ returnPathname })) : undefined,
     screenHint,
   });

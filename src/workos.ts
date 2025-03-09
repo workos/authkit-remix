@@ -1,19 +1,39 @@
 import { WorkOS } from '@workos-inc/node';
-import { WORKOS_API_HOSTNAME, WORKOS_API_HTTPS, WORKOS_API_KEY, WORKOS_API_PORT } from './env-variables.js';
+import { getConfig } from './config.js';
+import { lazy } from './utils.js';
 
 const VERSION = '0.7.1';
 
-const options = {
-  apiHostname: WORKOS_API_HOSTNAME,
-  https: WORKOS_API_HTTPS ? WORKOS_API_HTTPS === 'true' : true,
-  port: WORKOS_API_PORT ? parseInt(WORKOS_API_PORT) : undefined,
-  appInfo: {
-    name: 'authkit-remix',
-    version: VERSION,
-  },
-};
+/**
+ * Create a WorkOS instance with the provided API key and optional settings.
+ */
+export function createWorkOSInstance() {
+  // Get required API key from config
+  const apiKey = getConfig('apiKey');
 
-// Initialize the WorkOS client
-const workos = new WorkOS(WORKOS_API_KEY, options);
+  // Get optional settings
+  const apiHostname = getConfig('apiHostname');
+  const apiHttps = getConfig('apiHttps');
+  const apiPort = getConfig('apiPort');
 
-export { workos };
+  const options = {
+    apiHostname,
+    https: apiHttps,
+    port: apiPort,
+    appInfo: {
+      name: 'authkit-remix',
+      version: VERSION,
+    },
+  };
+
+  // Initialize the WorkOS client with config values
+  const workos = new WorkOS(apiKey, options);
+
+  return workos;
+}
+
+/**
+ * Create a WorkOS instance with the provided API key and optional settings.
+ * This function is lazy loaded to avoid loading the WorkOS SDK when it's not needed.
+ */
+export const getWorkOS = lazy(createWorkOSInstance);
