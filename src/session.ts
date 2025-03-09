@@ -14,6 +14,8 @@ import { sealData, unsealData } from 'iron-session';
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
 import { getConfig } from './config.js';
 import { configureSessionStorage, getSessionStorage } from './sessionStorage.js';
+import { isResponse } from './utils.js';
+import { isRedirect } from '../dist/cjs/utils.js';
 
 // must be a type since this is a subtype of response
 // interfaces must conform to the types they extend
@@ -98,22 +100,114 @@ type AuthLoader<Data> = (
 
 type AuthorizedAuthLoader<Data> = (args: LoaderFunctionArgs & { auth: AuthorizedData }) => LoaderReturnValue<Data>;
 
+/**
+ * This loader handles authentication state, session management, and access token refreshing
+ * automatically, making it easier to build authenticated routes.
+ *
+ * Creates an authentication-aware loader function for React Router.
+ *
+ * This loader handles authentication state, session management, and access token refreshing
+ * automatically, making it easier to build authenticated routes.
+ *
+ * @overload
+ * Basic usage with enforced authentication that redirects unauthenticated users to sign in.
+ *
+ * @param loaderArgs - The loader arguments provided by React Router
+ * @param options - Configuration options with enforced sign-in
+ *
+ * @example
+ * export async function loader({ request }: LoaderFunctionArgs) {
+ *   return authkitLoader(
+ *     { request },
+ *     { ensureSignedIn: true }
+ *   );
+ * }
+ */
 async function authkitLoader(
   loaderArgs: LoaderFunctionArgs,
   options: AuthKitLoaderOptions & { ensureSignedIn: true },
-): Promise<DataWithResponseInit<AuthorizedData> | Response>;
+): Promise<DataWithResponseInit<AuthorizedData>>;
 
+/**
+ * This loader handles authentication state, session management, and access token refreshing
+ * automatically, making it easier to build authenticated routes.
+ *
+ * @overload
+ * Basic usage without enforced authentication, allowing both signed-in and anonymous users.
+ *
+ * @param loaderArgs - The loader arguments provided by React Router
+ * @param options - Optional configuration options
+ *
+ * @example
+ * export async function loader({ request }: LoaderFunctionArgs) {
+ *   return authkitLoader({ request });
+ * }
+ */
 async function authkitLoader(
   loaderArgs: LoaderFunctionArgs,
   options?: AuthKitLoaderOptions,
 ): Promise<DataWithResponseInit<AuthorizedData | UnauthorizedData>>;
 
+/**
+ * This loader handles authentication state, session management, and access token refreshing
+ * automatically, making it easier to build authenticated routes.
+ *
+ * @overload
+ * Custom loader with enforced authentication, providing your own loader function
+ * that will only be called for authenticated users.
+ *
+ * @param loaderArgs - The loader arguments provided by React Router
+ * @param loader - A custom loader function that receives authentication data
+ * @param options - Configuration options with enforced sign-in
+ *
+ * @example
+ * export async function loader({ request }: LoaderFunctionArgs) {
+ *   return authkitLoader(
+ *     { request },
+ *     async ({ auth }) => {
+ *       // This will only be called for authenticated users
+ *       const userData = await fetchUserData(auth.accessToken);
+ *       return { userData };
+ *     },
+ *     { ensureSignedIn: true }
+ *   );
+ * }
+ */
 async function authkitLoader<Data = unknown>(
   loaderArgs: LoaderFunctionArgs,
   loader: AuthorizedAuthLoader<Data>,
   options: AuthKitLoaderOptions & { ensureSignedIn: true },
 ): Promise<DataWithResponseInit<Data & AuthorizedData>>;
 
+/**
+ * This loader handles authentication state, session management, and access token refreshing
+ * automatically, making it easier to build authenticated routes.
+ *
+ * @overload
+ * Custom loader without enforced authentication, providing your own loader function
+ * that will be called for both authenticated and unauthenticated users.
+ *
+ * @param loaderArgs - The loader arguments provided by React Router
+ * @param loader - A custom loader function that receives authentication data
+ * @param options - Optional configuration options
+ *
+ * @example
+ * export async function loader({ request }: LoaderFunctionArgs) {
+ *   return authkitLoader(
+ *     { request },
+ *     async ({ auth }) => {
+ *       if (auth.user) {
+ *         // User is authenticated
+ *         const userData = await fetchUserData(auth.accessToken);
+ *         return { userData };
+ *       } else {
+ *         // User is not authenticated
+ *         return { publicData: await fetchPublicData() };
+ *       }
+ *     }
+ *   );
+ * }
+ */
 async function authkitLoader<Data = unknown>(
   loaderArgs: LoaderFunctionArgs,
   loader: AuthLoader<Data>,
@@ -209,10 +303,10 @@ async function handleAuthLoader(
   // auth data plus session cookie header
   const loaderResult = await loader({ ...args, auth: auth as AuthorizedData });
 
-  if (loaderResult instanceof Response) {
+  if (isResponse(loaderResult)) {
     // If the result is a redirect, return it unedited
-    if (loaderResult.status >= 300 && loaderResult.status < 400) {
-      return loaderResult;
+    if (isRedirect(loaderResult)) {
+      throw loaderResult;
     }
 
     const newResponse = new Response(loaderResult.body, loaderResult);
