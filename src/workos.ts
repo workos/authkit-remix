@@ -4,7 +4,10 @@ import { lazy } from './utils.js';
 
 const VERSION = '0.7.1';
 
-export const getWorkOS = lazy(() => {
+/**
+ * Create a WorkOS instance with the provided API key and optional settings.
+ */
+export function createWorkOSInstance() {
   // Get required API key from config
   const apiKey = getConfig('apiKey');
 
@@ -27,4 +30,10 @@ export const getWorkOS = lazy(() => {
   const workos = new WorkOS(apiKey, options);
 
   return workos;
-});
+}
+
+/**
+ * Create a WorkOS instance with the provided API key and optional settings.
+ * This function is lazy loaded to avoid loading the WorkOS SDK when it's not needed.
+ */
+export const getWorkOS = lazy(createWorkOSInstance);
