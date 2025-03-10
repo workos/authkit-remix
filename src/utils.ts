@@ -1,4 +1,15 @@
-import { DataWithResponseInit } from './interfaces.js';
+import type { AuthorizedData, DataWithResponseInit } from './interfaces.js';
+
+/**
+ * Return sanitized data.
+ * @param data - The data to sanitize.
+ * @returns The sanitized data.
+ */
+export function sanitize(data: AuthorizedData) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { accessToken, sealedSession, ...sanitized } = data;
+  return sanitized;
+}
 
 /**
  * Returns a function that can only be called once.
