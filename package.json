@@ -22,6 +22,16 @@
     "prettier": "prettier \"{src,__tests__}/**/*.{js,ts,tsx}\" --check",
     "format": "prettier --write \"{src,__tests__}/**/*.{js,ts,tsx}\""
   },
+  "exports": {
+    "./client": {
+      "default ": "./dist/cjs/client/index.js",
+      "types": "./dist/cjs/client/index.d.ts"
+    },
+    ".": {
+      "default": "./dist/cjs/index.js",
+      "types": "./dist/cjs/index.d.ts"
+    }
+  },
   "dependencies": {
     "@workos-inc/node": "^7.31.0",
     "iron-session": "^8.0.1",
@@ -37,6 +47,8 @@
     "@testing-library/react": "^16.2.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.14.2",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
     "@typescript-eslint/eslint-plugin": "^6.7.4",
     "eslint": "^8.38.0",
     "eslint-config-prettier": "^9.1.0",
@@ -44,6 +56,8 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "prettier": "^3.3.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "react-router": "^7.3.0",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",

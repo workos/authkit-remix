@@ -3,7 +3,7 @@
   "compilerOptions": {
     "target": "ES2021",
     "lib": ["DOM", "ES2021", "DOM.Iterable"],
-    "jsx": "react",
+    "jsx": "react-jsx",
     "module": "Node16",
     "moduleResolution": "Node",
     "sourceMap": true,
