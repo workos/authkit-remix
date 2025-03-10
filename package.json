@@ -3,9 +3,10 @@
   "version": "0.7.1",
   "description": "Authentication and session helpers for using WorkOS & AuthKit with Remix",
   "sideEffects": false,
-  "type": "commonjs",
+  "type": "module",
   "main": "./dist/cjs/index.js",
-  "types": "./dist/cjs/index.d.ts",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
   "files": [
     "dist",
     "src",
@@ -15,8 +16,11 @@
   "scripts": {
     "clean": "rm -rf dist",
     "prebuild": "npm run clean",
-    "build": "tsc --project tsconfig-cjs.json",
-    "prepublishOnly": "npm run lint",
+    "build": "npm run build:cjs && npm run build:esm && npm run build:fix-cjs",
+    "build:cjs": "tsc --project tsconfig-cjs.json",
+    "build:esm": "tsc --project tsconfig-esm.json",
+    "build:fix-cjs": "echo '{\"type\":\"commonjs\"}' > dist/cjs/package.json",
+    "prepublishOnly": "npm run lint && npm run build",
     "lint": "eslint \"src/**/*.ts*\"",
     "test": "jest",
     "prettier": "prettier \"{src,__tests__}/**/*.{js,ts,tsx}\" --check",
@@ -24,12 +28,14 @@
   },
   "exports": {
     "./client": {
-      "default ": "./dist/cjs/client/index.js",
-      "types": "./dist/cjs/client/index.d.ts"
+      "import": "./dist/esm/client/index.js",
+      "require": "./dist/cjs/client/index.js",
+      "types": "./dist/esm/client/index.d.ts"
     },
     ".": {
-      "default": "./dist/cjs/index.js",
-      "types": "./dist/cjs/index.d.ts"
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js",
+      "types": "./dist/esm/index.d.ts"
     }
   },
   "dependencies": {
