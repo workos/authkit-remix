@@ -1,5 +1,7 @@
-import type { SessionStorage, SessionIdStorageStrategy } from '@remix-run/node';
+import type { SessionStorage, SessionIdStorageStrategy, data } from '@remix-run/node';
 import type { OauthTokens, User } from '@workos-inc/node';
+
+export type DataWithResponseInit<T> = ReturnType<typeof data<T>>;
 
 export interface HandleAuthOptions {
   returnPathname?: string;

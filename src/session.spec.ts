@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs, Session as RemixSession, redirect } from '@remix-run/node';
+import { LoaderFunctionArgs, Session as ReactRouterSession, redirect } from '@remix-run/node';
 import { AuthenticationResponse } from '@workos-inc/node';
 import * as ironSession from 'iron-session';
 import * as jose from 'jose';
@@ -40,6 +40,23 @@ const getSessionStorage = jest.mocked(getSessionStorageMock);
 const configureSessionStorage = jest.mocked(configureSessionStorageMock);
 const jwtVerify = jest.mocked(jose.jwtVerify);
 
+function getHeaderValue(headers: HeadersInit | undefined, name: string): string | null {
+  if (!headers) {
+    return null;
+  }
+
+  if (headers instanceof Headers) {
+    return headers.get(name);
+  }
+
+  if (Array.isArray(headers)) {
+    const pair = headers.find(([key]) => key.toLowerCase() === name.toLowerCase());
+    return pair?.[1] ?? null;
+  }
+
+  return headers[name] ?? null;
+}
+
 jest.mock('jose', () => ({
   createRemoteJWKSet: jest.fn(),
   jwtVerify: jest.fn(),
@@ -55,7 +72,7 @@ jest.mock('iron-session', () => ({
 
 describe('session', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const createMockSession = (overrides?: Record<string, any>): RemixSession =>
+  const createMockSession = (overrides?: Record<string, any>): ReactRouterSession =>
     ({
       has: jest.fn(),
       get: jest.fn(),
@@ -65,7 +82,7 @@ describe('session', () => {
       id: 'test-session-id',
       data: {},
       ...overrides,
-    }) satisfies RemixSession;
+    }) satisfies ReactRouterSession;
 
   const createMockRequest = (cookie = 'test-cookie', url = 'http://example.com./some-path') =>
     new Request(url, {
@@ -111,8 +128,10 @@ describe('session', () => {
           profilePictureUrl: 'https://example.com/avatar.jpg',
           firstName: 'Test',
           lastName: 'User',
+          externalId: null,
           createdAt: '2021-01-01T00:00:00Z',
           updatedAt: '2021-01-01T00:00:00Z',
+          lastSignInAt: '2021-01-01T00:00:00Z',
         },
         impersonator: undefined,
         headers: {},
@@ -190,7 +209,7 @@ describe('session', () => {
       // Execute
       const response = await terminateSession(createMockRequest());
 
-      // Assert response is instance of Remix Response
+      // Assert response is instance of Response
       expect(response instanceof Response).toBe(true);
       expect(response.status).toBe(302);
       expect(response.headers.get('Location')).toBe('https://auth.workos.com/logout/test-session-id');
@@ -222,8 +241,7 @@ describe('session', () => {
       });
 
       it('should return unauthorized data when no session exists', async () => {
-        const response = await authkitLoader(createLoaderArgs(createMockRequest()));
-        const data = await response.json();
+        const { data } = await authkitLoader(createLoaderArgs(createMockRequest()));
 
         expect(data).toEqual({
           user: null,
@@ -256,11 +274,14 @@ describe('session', () => {
         });
         const customLoader = jest.fn().mockReturnValue(redirectResponse);
 
-        const response = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
-
-        expect(response.status).toBe(302);
-        expect(response.headers.get('Location')).toBe('/dashboard');
-        expect(response.headers.get('X-Redirect-Reason')).toBe('test');
+        try {
+          await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
+        } catch (response: unknown) {
+          assertIsResponse(response);
+          expect(response.status).toBe(302);
+          expect(response.headers.get('Location')).toEqual('/dashboard');
+          expect(response.headers.get('X-Redirect-Reason')).toEqual('test');
+        }
       });
     });
 
@@ -303,8 +324,7 @@ describe('session', () => {
       });
 
       it('should return authorized data with session claims', async () => {
-        const response = await authkitLoader(createLoaderArgs(createMockRequest()));
-        const data = await response.json();
+        const { data } = await authkitLoader(createLoaderArgs(createMockRequest()));
 
         expect(data).toEqual({
           user: mockSessionData.user,
@@ -325,8 +345,7 @@ describe('session', () => {
           metadata: { key: 'value' },
         });
 
-        const response = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
-        const data = await response.json();
+        const { data } = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
 
         expect(data).toEqual(
           expect.objectContaining({
@@ -349,12 +368,11 @@ describe('session', () => {
           }),
         );
 
-        const response = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
+        const { data, init } = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
 
-        expect(response.headers.get('Custom-Header')).toBe('test-header');
-        expect(response.headers.get('Content-Type')).toBe('application/json; charset=utf-8');
+        expect(getHeaderValue(init?.headers, 'Custom-Header')).toBe('test-header');
+        expect(getHeaderValue(init?.headers, 'Content-Type')).toBe('application/json; charset=utf-8');
 
-        const data = await response.json();
         expect(data).toEqual(
           expect.objectContaining({
             customData: 'test-value',
@@ -437,8 +455,7 @@ describe('session', () => {
       });
 
       it('should refresh session when access token is invalid', async () => {
-        const response = await authkitLoader(createLoaderArgs(createMockRequest()));
-        const data = await response.json();
+        const { data, init } = await authkitLoader(createLoaderArgs(createMockRequest()));
 
         // Verify the refresh token flow was triggered
         expect(authenticateWithRefreshToken).toHaveBeenCalledWith({
@@ -459,7 +476,7 @@ describe('session', () => {
         );
 
         // Verify cookie was set
-        expect(response.headers.get('Set-Cookie')).toBe('new-session-cookie');
+        expect(getHeaderValue(init?.headers, 'Set-Cookie')).toBe('new-session-cookie');
       });
 
       it('should redirect to root when refresh fails', async () => {

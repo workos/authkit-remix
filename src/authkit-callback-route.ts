@@ -1,4 +1,4 @@
-import { LoaderFunctionArgs, json, redirect } from '@remix-run/node';
+import { LoaderFunctionArgs, data, redirect } from '@remix-run/node';
 import { getConfig } from './config.js';
 import { HandleAuthOptions } from './interfaces.js';
 import { encryptSession } from './session.js';
@@ -86,7 +86,7 @@ export function authLoader(options: HandleAuthOptions = {}) {
     }
 
     function errorResponse() {
-      return json(
+      return data(
         {
           error: {
             message: 'Something went wrong',

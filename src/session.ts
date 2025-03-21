@@ -1,13 +1,26 @@
-import type { LoaderFunctionArgs, SessionData, TypedResponse } from '@remix-run/node';
-import { json, redirect } from '@remix-run/node';
+import { data, redirect, type LoaderFunctionArgs, type SessionData } from '@remix-run/node';
 import { getAuthorizationUrl } from './get-authorization-url.js';
-import type { AccessToken, AuthKitLoaderOptions, AuthorizedData, Session, UnauthorizedData } from './interfaces.js';
+import type {
+  AccessToken,
+  AuthKitLoaderOptions,
+  AuthorizedData,
+  DataWithResponseInit,
+  Session,
+  UnauthorizedData,
+} from './interfaces.js';
 import { getWorkOS } from './workos.js';
 
 import { sealData, unsealData } from 'iron-session';
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
 import { getConfig } from './config.js';
 import { configureSessionStorage, getSessionStorage } from './sessionStorage.js';
+import { isResponse, isRedirect } from './utils.js';
+
+// must be a type since this is a subtype of response
+// interfaces must conform to the types they extend
+export type TypedResponse<T> = Response & {
+  json(): Promise<T>;
+};
 
 async function updateSession(request: Request, debug: boolean) {
   const session = await getSessionFromCookie(request.headers.get('Cookie') as string);
@@ -86,27 +99,119 @@ type AuthLoader<Data> = (
 
 type AuthorizedAuthLoader<Data> = (args: LoaderFunctionArgs & { auth: AuthorizedData }) => LoaderReturnValue<Data>;
 
+/**
+ * This loader handles authentication state, session management, and access token refreshing
+ * automatically, making it easier to build authenticated routes.
+ *
+ * Creates an authentication-aware loader function for React Router.
+ *
+ * This loader handles authentication state, session management, and access token refreshing
+ * automatically, making it easier to build authenticated routes.
+ *
+ * @overload
+ * Basic usage with enforced authentication that redirects unauthenticated users to sign in.
+ *
+ * @param loaderArgs - The loader arguments provided by React Router
+ * @param options - Configuration options with enforced sign-in
+ *
+ * @example
+ * export async function loader({ request }: LoaderFunctionArgs) {
+ *   return authkitLoader(
+ *     { request },
+ *     { ensureSignedIn: true }
+ *   );
+ * }
+ */
 async function authkitLoader(
   loaderArgs: LoaderFunctionArgs,
   options: AuthKitLoaderOptions & { ensureSignedIn: true },
-): Promise<TypedResponse<AuthorizedData>>;
+): Promise<DataWithResponseInit<AuthorizedData>>;
 
+/**
+ * This loader handles authentication state, session management, and access token refreshing
+ * automatically, making it easier to build authenticated routes.
+ *
+ * @overload
+ * Basic usage without enforced authentication, allowing both signed-in and anonymous users.
+ *
+ * @param loaderArgs - The loader arguments provided by React Router
+ * @param options - Optional configuration options
+ *
+ * @example
+ * export async function loader({ request }: LoaderFunctionArgs) {
+ *   return authkitLoader({ request });
+ * }
+ */
 async function authkitLoader(
   loaderArgs: LoaderFunctionArgs,
   options?: AuthKitLoaderOptions,
-): Promise<TypedResponse<AuthorizedData | UnauthorizedData>>;
+): Promise<DataWithResponseInit<AuthorizedData | UnauthorizedData>>;
 
+/**
+ * This loader handles authentication state, session management, and access token refreshing
+ * automatically, making it easier to build authenticated routes.
+ *
+ * @overload
+ * Custom loader with enforced authentication, providing your own loader function
+ * that will only be called for authenticated users.
+ *
+ * @param loaderArgs - The loader arguments provided by React Router
+ * @param loader - A custom loader function that receives authentication data
+ * @param options - Configuration options with enforced sign-in
+ *
+ * @example
+ * export async function loader({ request }: LoaderFunctionArgs) {
+ *   return authkitLoader(
+ *     { request },
+ *     async ({ auth }) => {
+ *       // This will only be called for authenticated users
+ *       const userData = await fetchUserData(auth.accessToken);
+ *       return { userData };
+ *     },
+ *     { ensureSignedIn: true }
+ *   );
+ * }
+ */
 async function authkitLoader<Data = unknown>(
   loaderArgs: LoaderFunctionArgs,
   loader: AuthorizedAuthLoader<Data>,
   options: AuthKitLoaderOptions & { ensureSignedIn: true },
-): Promise<TypedResponse<Data & AuthorizedData>>;
+): Promise<DataWithResponseInit<Data & AuthorizedData>>;
 
+/**
+ * This loader handles authentication state, session management, and access token refreshing
+ * automatically, making it easier to build authenticated routes.
+ *
+ * @overload
+ * Custom loader without enforced authentication, providing your own loader function
+ * that will be called for both authenticated and unauthenticated users.
+ *
+ * @param loaderArgs - The loader arguments provided by React Router
+ * @param loader - A custom loader function that receives authentication data
+ * @param options - Optional configuration options
+ *
+ * @example
+ * export async function loader({ request }: LoaderFunctionArgs) {
+ *   return authkitLoader(
+ *     { request },
+ *     async ({ auth }) => {
+ *       if (auth.user) {
+ *         // User is authenticated
+ *         const userData = await fetchUserData(auth.accessToken);
+ *         return { userData };
+ *       } else {
+ *         // User is not authenticated
+ *         return { publicData: await fetchPublicData() };
+ *       }
+ *     }
+ *   );
+ * }
+ */
 async function authkitLoader<Data = unknown>(
   loaderArgs: LoaderFunctionArgs,
   loader: AuthLoader<Data>,
   options?: AuthKitLoaderOptions,
-): Promise<TypedResponse<Data & (AuthorizedData | UnauthorizedData)>>;
+): Promise<DataWithResponseInit<Data & (AuthorizedData | UnauthorizedData)>>;
 
 async function authkitLoader<Data = unknown>(
   loaderArgs: LoaderFunctionArgs,
@@ -190,21 +295,21 @@ async function handleAuthLoader(
   session?: Session,
 ) {
   if (!loader) {
-    return json(auth, session ? { headers: { ...session.headers } } : undefined);
+    return data(auth, session ? { headers: { ...session.headers } } : undefined);
   }
 
   // If there's a custom loader, get the resulting data and return it with our
   // auth data plus session cookie header
   const loaderResult = await loader({ ...args, auth: auth as AuthorizedData });
 
-  if (loaderResult instanceof Response) {
+  if (isResponse(loaderResult)) {
     // If the result is a redirect, return it unedited
-    if (loaderResult.status >= 300 && loaderResult.status < 400) {
-      return loaderResult;
+    if (isRedirect(loaderResult)) {
+      throw loaderResult;
     }
 
     const newResponse = new Response(loaderResult.body, loaderResult);
-    const data = await newResponse.json();
+    const responseData = await newResponse.json();
 
     // Set the content type in case the user returned a Response instead of the
     // json helper method
@@ -213,12 +318,12 @@ async function handleAuthLoader(
       newResponse.headers.append('Set-Cookie', session.headers['Set-Cookie']);
     }
 
-    return json({ ...data, ...auth }, newResponse);
+    return data({ ...responseData, ...auth }, newResponse);
   }
 
   // If the loader returns a non-Response, assume it's a data object
   // istanbul ignore next
-  return json({ ...loaderResult, ...auth }, session ? { headers: { ...session.headers } } : undefined);
+  return data({ ...loaderResult, ...auth }, session ? { headers: { ...session.headers } } : undefined);
 }
 
 async function terminateSession(request: Request) {
