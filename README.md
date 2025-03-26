@@ -160,16 +160,15 @@ For pages where you want to display a signed-in and signed-out view, use `authki
 
 ```tsx
 import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node';
-import { json } from '@remix-run/node';
 import { Form, Link, useLoaderData } from '@remix-run/react';
 import { getSignInUrl, getSignUpUrl, signOut, authkitLoader } from '@workos-inc/authkit-remix';
 
 export const loader = (args: LoaderFunctionArgs) =>
   authkitLoader(args, async ({ request, auth }) => {
-    return json({
+    return {
       signInUrl: await getSignInUrl(),
       signUpUrl: await getSignUpUrl(),
-    });
+    };
   });
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -218,7 +217,6 @@ Sometimes it is useful to obtain the access token directly, for instance to make
 
 ```tsx
 import type { LoaderFunctionArgs } from '@remix-run/node';
-import { json } from '@remix-run/node';
 import { authkitLoader } from '@workos-inc/authkit-remix';
 
 export const loader = (args: LoaderFunctionArgs) =>
@@ -235,9 +233,9 @@ export const loader = (args: LoaderFunctionArgs) =>
       },
     });
 
-    return json({
+    return {
       data: serviceData,
-    });
+    };
   });
 ```
 
@@ -260,7 +258,7 @@ export const loader = (args: LoaderFunctionArgs) =>
   authkitLoader(
     args,
     async ({ auth }) => {
-      return json({ foo: 'bar' });
+      return { foo: 'bar' };
     },
     { debug: true },
   );
