@@ -29,6 +29,16 @@ export function isRedirect(res: Response) {
 }
 
 /**
+ * Returns true if the response is a JSON response.
+ * This is determined by checking if the Content-Type header includes 'application/json'.
+ * @param res - The response to check.
+ * @returns True if the response is a JSON response.
+ */
+export function isJsonResponse(res: Response): boolean {
+  return !!res.headers.get('Content-Type')?.includes('application/json');
+}
+
+/**
  * Returns true if the response is a response.
  * @param response - The response to check.
  * @returns True if the response is a response.

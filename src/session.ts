@@ -14,7 +14,7 @@ import { sealData, unsealData } from 'iron-session';
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
 import { getConfig } from './config.js';
 import { configureSessionStorage, getSessionStorage } from './sessionStorage.js';
-import { isResponse, isRedirect } from './utils.js';
+import { isResponse, isRedirect, isJsonResponse } from './utils.js';
 
 // must be a type since this is a subtype of response
 // interfaces must conform to the types they extend
@@ -309,14 +309,16 @@ async function handleAuthLoader(
     }
 
     const newResponse = new Response(loaderResult.body, loaderResult);
-    const responseData = await newResponse.json();
 
-    // Set the content type in case the user returned a Response instead of the
-    // json helper method
-    newResponse.headers.set('Content-Type', 'application/json; charset=utf-8');
     if (session) {
       newResponse.headers.append('Set-Cookie', session.headers['Set-Cookie']);
     }
+
+    if (!isJsonResponse(newResponse)) {
+      return newResponse;
+    }
+
+    const responseData = await newResponse.json();
 
     return data({ ...responseData, ...auth }, newResponse);
   }
