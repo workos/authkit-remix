@@ -35,7 +35,8 @@ export function isRedirect(res: Response) {
  * @returns True if the response is a JSON response.
  */
 export function isJsonResponse(res: Response): boolean {
-  return !!res.headers.get('Content-Type')?.includes('application/json');
+  const contentType = res.headers.get('Content-Type')?.toLowerCase();
+  return !!contentType?.includes('application/json');
 }
 
 /**
