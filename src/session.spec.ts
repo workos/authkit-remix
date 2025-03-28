@@ -323,6 +323,41 @@ describe('session', () => {
         });
       });
 
+      it('should pass through non-JSON responses with just the cookie added', async () => {
+        // Set up a custom loader that returns HTML
+        const htmlContent = '<html><body><h1>Hello World!</h1></body></html>';
+        const customLoader = jest.fn().mockReturnValue(
+          new Response(htmlContent, {
+            headers: {
+              'Content-Type': 'text/html',
+              'X-Custom-Header': 'test-value',
+            },
+          }),
+        );
+
+        // Call authkitLoader with the HTML-returning loader
+        const result = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
+
+        // Verify we got back a Response, not a DataWithResponseInit
+        assertIsResponse(result);
+
+        // Check that the response body wasn't modified
+        const resultText = await result.clone().text();
+        expect(resultText).toBe(htmlContent);
+
+        // Check that original headers were preserved
+        expect(result.headers.get('Content-Type')).toBe('text/html');
+        expect(result.headers.get('X-Custom-Header')).toBe('test-value');
+
+        // Check that session cookie was added
+        expect(result.headers.get('Set-Cookie')).toBe('session-cookie');
+
+        // Verify that the JSON parsing method was not called
+        const jsonSpy = jest.spyOn(Response.prototype, 'json');
+        expect(jsonSpy).not.toHaveBeenCalled();
+        jsonSpy.mockRestore();
+      });
+
       it('should return authorized data with session claims', async () => {
         const { data } = await authkitLoader(createLoaderArgs(createMockRequest()));
 
@@ -371,7 +406,7 @@ describe('session', () => {
         const { data, init } = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
 
         expect(getHeaderValue(init?.headers, 'Custom-Header')).toBe('test-header');
-        expect(getHeaderValue(init?.headers, 'Content-Type')).toBe('application/json; charset=utf-8');
+        expect(getHeaderValue(init?.headers, 'Content-Type')).toBe('application/json');
 
         expect(data).toEqual(
           expect.objectContaining({
