@@ -7,7 +7,7 @@ import {
   getSessionStorage as getSessionStorageMock,
 } from './sessionStorage.js';
 import { Session } from './interfaces.js';
-import { authkitLoader, encryptSession, terminateSession } from './session.js';
+import { authkitLoader, encryptSession, refreshSession, terminateSession } from './session.js';
 import { assertIsResponse } from './test-utils/test-helpers.js';
 import { getWorkOS } from './workos.js';
 import { getConfig } from './config.js';
@@ -527,6 +527,132 @@ describe('session', () => {
           expect(response.headers.get('Set-Cookie')).toBe('destroyed-session-cookie');
         }
       });
+    });
+  });
+
+  describe('refreshSession', () => {
+    const createMockRequest = (cookie = 'test-cookie', url = 'http://example.com./some-path') =>
+      new Request(url, {
+        headers: new Headers({
+          Cookie: cookie,
+        }),
+      });
+
+    let getSession: jest.Mock;
+    let destroySession: jest.Mock;
+    let commitSession: jest.Mock;
+    let mockSession: ReactRouterSession;
+
+    beforeEach(() => {
+      getSession = jest.fn();
+      destroySession = jest.fn().mockResolvedValue('destroyed-session-cookie');
+      commitSession = jest.fn().mockResolvedValue('new-session-cookie');
+
+      mockSession = createMockSession({
+        has: jest.fn().mockReturnValue(true),
+        get: jest.fn().mockReturnValue('encrypted-jwt'),
+        set: jest.fn(),
+      });
+
+      getSessionStorage.mockResolvedValue({
+        cookieName: 'wos-cookie',
+        getSession,
+        destroySession,
+        commitSession,
+      });
+
+      getSession.mockResolvedValue(mockSession);
+
+      const validSessionData = {
+        accessToken: 'valid.token',
+        refreshToken: 'refresh.token',
+        user: {
+          id: 'user-1',
+          email: 'test@example.com',
+          firstName: 'Test',
+          lastName: 'User',
+          object: 'user',
+        },
+        impersonator: null,
+      };
+      unsealData.mockResolvedValue(validSessionData);
+      sealData.mockResolvedValue('new-encrypted-jwt');
+
+      authenticateWithRefreshToken.mockResolvedValue({
+        accessToken: 'new.valid.token',
+        refreshToken: 'new.refresh.token',
+      } as AuthenticationResponse);
+
+      // Mock JWT decoding
+      (jose.decodeJwt as jest.Mock).mockReturnValue({
+        sid: 'new-session-id',
+        org_id: 'org-123',
+        role: 'user',
+        permissions: ['read'],
+        entitlements: ['basic'],
+      });
+    });
+
+    it('should refresh the session successfully', async () => {
+      const refreshedSession = await refreshSession(createMockRequest());
+
+      expect(getSessionStorage).toHaveBeenCalled();
+      expect(authenticateWithRefreshToken).toHaveBeenCalledWith({
+        clientId: expect.any(String),
+        refreshToken: 'refresh.token',
+        organizationId: undefined,
+      });
+
+      expect(mockSession.set).toHaveBeenCalledWith('jwt', 'new-encrypted-jwt');
+      expect(commitSession).toHaveBeenCalledWith(mockSession);
+
+      expect(refreshedSession).toEqual({
+        user: expect.objectContaining({ id: 'user-1' }),
+        sessionId: 'new-session-id',
+        accessToken: 'new.valid.token',
+        organizationId: 'org-123',
+        role: 'user',
+        permissions: ['read'],
+        entitlements: ['basic'],
+        impersonator: null,
+        sealedSession: 'encrypted-jwt',
+        headers: {
+          'Set-Cookie': 'new-session-cookie',
+        },
+      });
+    });
+
+    it('should refresh the session with organizationId', async () => {
+      await refreshSession(createMockRequest(), { organizationId: 'org-456' });
+
+      expect(authenticateWithRefreshToken).toHaveBeenCalledWith({
+        clientId: expect.any(String),
+        refreshToken: 'refresh.token',
+        organizationId: 'org-456',
+      });
+    });
+
+    it('should redirect to sign-in when no session exists', async () => {
+      // Mock no session found
+      unsealData.mockResolvedValue(null);
+
+      try {
+        await refreshSession(createMockRequest());
+        fail('Expected redirect response to be thrown');
+      } catch (response: unknown) {
+        assertIsResponse(response);
+        expect(response.status).toBe(302);
+        expect(response.headers.get('Location')).toMatch(/^https:\/\/auth\.workos\.com\/oauth/);
+      }
+    });
+
+    it('should throw error when refresh fails', async () => {
+      // Mock refresh token failure
+      authenticateWithRefreshToken.mockRejectedValue(new Error('Invalid refresh token'));
+
+      await expect(refreshSession(createMockRequest())).rejects.toThrow(
+        'Failed to refresh session: Invalid refresh token',
+      );
     });
   });
 });
