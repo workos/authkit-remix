@@ -1,17 +1,24 @@
 import { getConfig } from './config.js';
-import { GetAuthURLOptions } from './interfaces.js';
 import { getWorkOS } from './workos.js';
 
-async function getAuthorizationUrl(options: GetAuthURLOptions = {}) {
-  const { returnPathname, screenHint } = options;
+interface GetAuthURLOptions {
+  screenHint?: 'sign-up' | 'sign-in';
+  returnPathname?: string;
+  organizationId?: string;
+  redirectUri?: string;
+  loginHint?: string;
+}
+
+export async function getAuthorizationUrl(options: GetAuthURLOptions = {}) {
+  const { returnPathname, screenHint, organizationId, redirectUri, loginHint } = options;
 
   return getWorkOS().userManagement.getAuthorizationUrl({
     provider: 'authkit',
     clientId: getConfig('clientId'),
-    redirectUri: getConfig('redirectUri'),
+    redirectUri: redirectUri || getConfig('redirectUri'),
     state: returnPathname ? btoa(JSON.stringify({ returnPathname })) : undefined,
     screenHint,
+    organizationId,
+    loginHint,
   });
 }
-
-export { getAuthorizationUrl };

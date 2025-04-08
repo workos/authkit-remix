@@ -37,11 +37,6 @@ export interface AccessToken {
   entitlements?: string[];
 }
 
-export interface GetAuthURLOptions {
-  screenHint?: 'sign-up' | 'sign-in';
-  returnPathname?: string;
-}
-
 export type AuthKitLoaderOptions = {
   ensureSignedIn?: boolean;
   debug?: boolean;
