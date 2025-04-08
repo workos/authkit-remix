@@ -55,8 +55,7 @@ export async function switchToOrganization(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const errorCause: any = error instanceof Error ? error.cause : null;
     if (errorCause?.error === 'sso_required' || errorCause?.error === 'mfa_enrollment') {
-      // return redirect(await getAuthorizationUrl({ organizationId }));
-      return redirect(await getAuthorizationUrl());
+      return redirect(await getAuthorizationUrl({ organizationId }));
     }
 
     return data(
