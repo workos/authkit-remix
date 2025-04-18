@@ -188,6 +188,36 @@ describe('session', () => {
       expect(getLogoutUrl).not.toHaveBeenCalled();
     });
 
+    it('Should redirect to the provided returnTo if no session exists', async () => {
+      const mockSession = createMockSession({
+        has: jest.fn().mockReturnValue(true),
+        get: jest.fn().mockReturnValue('encrypted-jwt'),
+      });
+
+      getSession.mockResolvedValueOnce(mockSession);
+
+      // Mock session data with a token that will decode to no sessionId
+      const mockSessionData = {
+        accessToken: 'token.without.sessionid',
+        refreshToken: 'refresh-token',
+        user: { id: 'user-id' },
+        impersonator: null,
+      };
+      unsealData.mockResolvedValueOnce(mockSessionData);
+
+      // Mock decodeJwt to return no sessionId
+      (jose.decodeJwt as jest.Mock).mockReturnValueOnce({});
+
+      const response = await terminateSession(createMockRequest(), '/login');
+
+      expect(response instanceof Response).toBe(true);
+      expect(response.status).toBe(302);
+      expect(response.headers.get('Location')).toBe('/login');
+      expect(response.headers.get('Set-Cookie')).toBe('destroyed-session-cookie');
+      expect(destroySession).toHaveBeenCalledWith(mockSession);
+      expect(getLogoutUrl).not.toHaveBeenCalled();
+    });
+
     it('should redirect to WorkOS logout URL when valid session exists', async () => {
       // Setup a session with jwt
       const mockSession = createMockSession({

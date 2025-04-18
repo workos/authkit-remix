@@ -10,8 +10,8 @@ export async function getSignUpUrl(returnPathname?: string) {
   return getAuthorizationUrl({ returnPathname, screenHint: 'sign-up' });
 }
 
-export async function signOut(request: Request) {
-  return await terminateSession(request);
+export async function signOut(request: Request, returnTo?: string) {
+  return await terminateSession(request, returnTo);
 }
 
 /**

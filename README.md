@@ -211,6 +211,15 @@ Enabling `ensureSignedIn` will redirect users to AuthKit if they attempt to acce
 
 Use the `signOut` method to sign out the current logged in user, end the session, and redirect to your app's homepage. The homepage redirect is set in your WorkOS dashboard settings under "Redirect".
 
+If you would like to specify where a user is redirected, an optional `returnTo` argument can be passed. Allowed values are configured in the WorkOS Dashboard under _[Logout redirects](https://workos.com/docs/user-management/sessions/configuring-sessions/logout-redirect)_.
+
+```ts
+export async function action({ request }: ActionFunctionArgs) {
+  // Called when the form in SignInButton is submitted
+  return await signOut(request, 'https://example.com');
+}
+```
+
 ### Get the access token
 
 Sometimes it is useful to obtain the access token directly, for instance to make API requests to another service.
