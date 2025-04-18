@@ -66,9 +66,9 @@ describe('auth', () => {
     it('should return a response with returnTo', async () => {
       const request = new Request('https://example.com');
       const returnTo = '/dashboard';
-      const response = await signOut(request, returnTo);
+      const response = await signOut(request, { returnTo });
       expect(response).toBeInstanceOf(Response);
-      expect(terminateSession).toHaveBeenCalledWith(request, returnTo);
+      expect(terminateSession).toHaveBeenCalledWith(request, { returnTo });
     });
   });
 

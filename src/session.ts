@@ -393,7 +393,7 @@ async function handleAuthLoader(
   return data({ ...loaderResult, ...auth }, session ? { headers: { ...session.headers } } : undefined);
 }
 
-export async function terminateSession(request: Request, returnTo?: string) {
+export async function terminateSession(request: Request, { returnTo }: { returnTo?: string } = {}) {
   const { getSession, destroySession } = await getSessionStorage();
   const encryptedSession = await getSession(request.headers.get('Cookie'));
   const { accessToken } = (await getSessionFromCookie(

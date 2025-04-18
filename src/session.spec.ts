@@ -208,7 +208,7 @@ describe('session', () => {
       // Mock decodeJwt to return no sessionId
       (jose.decodeJwt as jest.Mock).mockReturnValueOnce({});
 
-      const response = await terminateSession(createMockRequest(), '/login');
+      const response = await terminateSession(createMockRequest(), { returnTo: '/login' });
 
       expect(response instanceof Response).toBe(true);
       expect(response.status).toBe(302);

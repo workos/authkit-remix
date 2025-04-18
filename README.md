@@ -216,7 +216,7 @@ If you would like to specify where a user is redirected, an optional `returnTo` 
 ```ts
 export async function action({ request }: ActionFunctionArgs) {
   // Called when the form in SignInButton is submitted
-  return await signOut(request, 'https://example.com');
+  return await signOut(request, { returnTo: 'https://example.com' });
 }
 ```
 
