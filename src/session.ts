@@ -343,8 +343,7 @@ export async function authkitLoader<Data = unknown>(
     const cookieSession = await getSession(request.headers.get('Cookie'));
     const { impersonator = null } = session;
 
-    // Session refresh was successful if the session was refreshed
-    // Call success callback if provided
+    // checking for 'headers' in session determines if the session was refreshed or not
     if (onSessionRefreshSuccess && 'headers' in session) {
       await onSessionRefreshSuccess({
         accessToken: session.accessToken,
@@ -368,11 +367,9 @@ export async function authkitLoader<Data = unknown>(
 
     return await handleAuthLoader(loader, loaderArgs, auth, session);
   } catch (error) {
-    // Handle session refresh errors
     if (error instanceof SessionRefreshError) {
       const cookieSession = await getSession(request.headers.get('Cookie'));
 
-      // If refresh error callback provided, execute it
       if (onSessionRefreshError) {
         try {
           const result = await onSessionRefreshError({
@@ -381,7 +378,6 @@ export async function authkitLoader<Data = unknown>(
             sessionData: cookieSession,
           });
 
-          // If callback returned a Response, use it
           if (result instanceof Response) {
             return result;
           }

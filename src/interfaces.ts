@@ -55,7 +55,6 @@ export type AuthKitLoaderOptions = {
   debug?: boolean;
   onSessionRefreshError?: (options: RefreshErrorOptions) => void | Response | Promise<void | Response>;
   onSessionRefreshSuccess?: (options: RefreshSuccessOptions) => void | Promise<void>;
-  redirectToAuthOnRefreshFailure?: boolean;
 } & (
   | {
       storage?: never;
