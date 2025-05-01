@@ -544,6 +544,15 @@ describe('session', () => {
         expect(getHeaderValue(init?.headers, 'Set-Cookie')).toBe('new-session-cookie');
       });
 
+      it('calls onSessionRefreshSuccess when provided', async () => {
+        const onSessionRefreshSuccess = jest.fn();
+        await authkitLoader(createLoaderArgs(createMockRequest()), {
+          onSessionRefreshSuccess,
+        });
+
+        expect(onSessionRefreshSuccess).toHaveBeenCalled();
+      });
+
       it('should redirect to root when refresh fails', async () => {
         authenticateWithRefreshToken.mockRejectedValue(new Error('Refresh token invalid'));
 
@@ -555,6 +564,34 @@ describe('session', () => {
           expect(response.status).toBe(302);
           expect(response.headers.get('Location')).toBe('/');
           expect(response.headers.get('Set-Cookie')).toBe('destroyed-session-cookie');
+        }
+      });
+
+      it('calls onSessionRefreshError when provided and refresh fails', async () => {
+        authenticateWithRefreshToken.mockRejectedValue(new Error('Refresh token invalid'));
+        const onSessionRefreshError = jest.fn().mockReturnValue(redirect('/error'));
+
+        await authkitLoader(createLoaderArgs(createMockRequest()), {
+          onSessionRefreshError,
+        });
+
+        expect(onSessionRefreshError).toHaveBeenCalled();
+      });
+
+      it('allows redirect from onSessionRefreshError callback', async () => {
+        authenticateWithRefreshToken.mockRejectedValue(new Error('Refresh token invalid'));
+
+        try {
+          await authkitLoader(createLoaderArgs(createMockRequest()), {
+            onSessionRefreshError: () => {
+              throw redirect('/');
+            },
+          });
+          fail('Expected redirect response to be thrown');
+        } catch (response: unknown) {
+          assertIsResponse(response);
+          expect(response.status).toBe(302);
+          expect(response.headers.get('Location')).toBe('/');
         }
       });
     });
