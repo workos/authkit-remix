@@ -1,16 +1,26 @@
 import { User } from '@workos-inc/node';
-import { getSignInUrl, getSignUpUrl, signOut, switchToOrganization } from './auth.js';
+import { getSignInUrl, getSignUpUrl, signOut, switchToOrganization, withAuth } from './auth.js';
 import * as authorizationUrl from './get-authorization-url.js';
 import * as session from './session.js';
-import { data, redirect } from '@remix-run/node';
+import * as configModule from './config.js';
+import { data, redirect, LoaderFunctionArgs } from '@remix-run/node';
 import { assertIsResponse } from './test-utils/test-helpers.js';
 
 const terminateSession = jest.mocked(session.terminateSession);
 const refreshSession = jest.mocked(session.refreshSession);
+const getSessionFromCookie = jest.mocked(session.getSessionFromCookie);
+const getClaimsFromAccessToken = jest.mocked(session.getClaimsFromAccessToken);
+const getConfig = jest.mocked(configModule.getConfig);
 
 jest.mock('./session', () => ({
   terminateSession: jest.fn().mockResolvedValue(new Response()),
   refreshSession: jest.fn(),
+  getSessionFromCookie: jest.fn(),
+  getClaimsFromAccessToken: jest.fn(),
+}));
+
+jest.mock('./config', () => ({
+  getConfig: jest.fn(),
 }));
 
 // Mock redirect and data from react-router
@@ -281,6 +291,195 @@ describe('auth', () => {
           'Set-Cookie': '',
         },
       });
+    });
+  });
+
+  describe('withAuth', () => {
+    const createMockRequest = (cookie?: string) => {
+      return {
+        request: new Request('https://example.com', {
+          headers: cookie ? { Cookie: cookie } : {},
+        }),
+      } as LoaderFunctionArgs;
+    };
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      getConfig.mockReturnValue('wos-session');
+    });
+
+    it('should return user info when a valid session exists', async () => {
+      // Mock session with valid access token
+      const mockSession = {
+        accessToken: 'valid-access-token',
+        refreshToken: 'refresh-token',
+        user: {
+          id: 'user-1',
+          email: 'test@example.com',
+          firstName: 'Test',
+          lastName: 'User',
+          emailVerified: true,
+          profilePictureUrl: 'https://example.com/profile.jpg',
+          object: 'user' as const,
+          createdAt: '2023-01-01T00:00:00Z',
+          updatedAt: '2023-01-01T00:00:00Z',
+          lastSignInAt: '2023-01-01T00:00:00Z',
+          externalId: null,
+        },
+        impersonator: {
+          email: 'admin@example.com',
+          reason: 'testing',
+        },
+        headers: {},
+      };
+
+      // Mock claims from access token
+      const mockClaims = {
+        sessionId: 'session-123',
+        organizationId: 'org-456',
+        role: 'admin',
+        permissions: ['read', 'write'],
+        entitlements: ['feature-1', 'feature-2'],
+        exp: Date.now() / 1000 + 3600, // 1 hour from now
+        iss: 'https://api.workos.com',
+      };
+
+      getSessionFromCookie.mockResolvedValue(mockSession);
+      getClaimsFromAccessToken.mockReturnValue(mockClaims);
+
+      const result = await withAuth(createMockRequest('wos-session=valid-session-data'));
+
+      // Verify called with correct params
+      expect(getSessionFromCookie).toHaveBeenCalledWith('wos-session=valid-session-data');
+      expect(getClaimsFromAccessToken).toHaveBeenCalledWith('valid-access-token');
+
+      // Check result contains expected user info
+      expect(result).toEqual({
+        user: mockSession.user,
+        sessionId: mockClaims.sessionId,
+        organizationId: mockClaims.organizationId,
+        role: mockClaims.role,
+        permissions: mockClaims.permissions,
+        entitlements: mockClaims.entitlements,
+        impersonator: mockSession.impersonator,
+        accessToken: mockSession.accessToken,
+      });
+    });
+
+    it('should handle expired access tokens', async () => {
+      // Mock session with expired access token
+      const mockSession = {
+        accessToken: 'expired-access-token',
+        refreshToken: 'refresh-token',
+        user: {
+          id: 'user-1',
+          email: 'test@example.com',
+          firstName: 'Test',
+          lastName: 'User',
+          emailVerified: true,
+          profilePictureUrl: 'https://example.com/profile.jpg',
+          object: 'user' as const,
+          createdAt: '2023-01-01T00:00:00Z',
+          updatedAt: '2023-01-01T00:00:00Z',
+          lastSignInAt: '2023-01-01T00:00:00Z',
+          externalId: null,
+        },
+        headers: {},
+      };
+
+      // Mock claims with expired token
+      const mockClaims = {
+        sessionId: 'session-123',
+        organizationId: 'org-456',
+        role: 'admin',
+        permissions: ['read', 'write'],
+        entitlements: ['feature-1', 'feature-2'],
+        exp: Date.now() / 1000 - 3600, // 1 hour ago (expired)
+        iss: 'https://api.workos.com',
+      };
+
+      getSessionFromCookie.mockResolvedValue(mockSession);
+      getClaimsFromAccessToken.mockReturnValue(mockClaims);
+
+      // Spy on console.warn
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      const result = await withAuth(createMockRequest('wos-session=expired-session-data'));
+
+      // Should warn about expired token
+      expect(consoleWarnSpy).toHaveBeenCalledWith('Access token expired for user');
+
+      // Result should still contain user info
+      expect(result).toEqual({
+        user: mockSession.user,
+        sessionId: mockClaims.sessionId,
+        organizationId: mockClaims.organizationId,
+        role: mockClaims.role,
+        permissions: mockClaims.permissions,
+        entitlements: mockClaims.entitlements,
+        impersonator: undefined,
+        accessToken: mockSession.accessToken,
+      });
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should return NoUserInfo when no session exists', async () => {
+      // Mock no session
+      getSessionFromCookie.mockResolvedValue(null);
+
+      const result = await withAuth(createMockRequest());
+
+      expect(result).toEqual({
+        user: null,
+      });
+
+      // getClaimsFromAccessToken should not be called
+      expect(getClaimsFromAccessToken).not.toHaveBeenCalled();
+    });
+
+    it('should return NoUserInfo when session exists but has no access token', async () => {
+      // Mock session with no access token - we'll add a dummy accessToken that will be ignored
+      getSessionFromCookie.mockResolvedValue({
+        user: {
+          id: 'user-1',
+          email: 'test@example.com',
+          firstName: 'Test',
+          lastName: 'User',
+          emailVerified: true,
+          profilePictureUrl: 'https://example.com/profile.jpg',
+          object: 'user' as const,
+          createdAt: '2023-01-01T00:00:00Z',
+          updatedAt: '2023-01-01T00:00:00Z',
+          lastSignInAt: '2023-01-01T00:00:00Z',
+          externalId: null,
+        },
+        refreshToken: 'refresh-token',
+        headers: {},
+        accessToken: '', // Empty string to meet type requirement but it will be treated as falsy
+      });
+
+      const result = await withAuth(createMockRequest('wos-session=invalid-session-data'));
+
+      expect(result).toEqual({
+        user: null,
+      });
+
+      // getClaimsFromAccessToken should not be called
+      expect(getClaimsFromAccessToken).not.toHaveBeenCalled();
+    });
+
+    it('should warn when no cookie header includes the cookie name', async () => {
+      // Spy on console.warn
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      getSessionFromCookie.mockResolvedValue(null);
+
+      await withAuth(createMockRequest('other-cookie=value'));
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('No session cookie "wos-session" found.'));
+
+      consoleWarnSpy.mockRestore();
     });
   });
 });
