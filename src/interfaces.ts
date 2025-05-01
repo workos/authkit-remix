@@ -1,4 +1,4 @@
-import type { SessionStorage, SessionIdStorageStrategy, data } from '@remix-run/node';
+import type { SessionStorage, SessionIdStorageStrategy, data, SessionData } from '@remix-run/node';
 import type { OauthTokens, User } from '@workos-inc/node';
 
 export type DataWithResponseInit<T> = ReturnType<typeof data<T>>;
@@ -14,6 +14,19 @@ export interface AuthLoaderSuccessData {
   oauthTokens: OauthTokens | null;
   refreshToken: string;
   user: User;
+}
+
+export interface RefreshErrorOptions {
+  error: unknown;
+  request: Request;
+  sessionData: SessionData;
+}
+
+export interface RefreshSuccessOptions {
+  accessToken: string;
+  user: User;
+  impersonator: Impersonator | null;
+  organizationId: string | null;
 }
 
 export interface Impersonator {
@@ -40,6 +53,9 @@ export interface AccessToken {
 export type AuthKitLoaderOptions = {
   ensureSignedIn?: boolean;
   debug?: boolean;
+  onSessionRefreshError?: (options: RefreshErrorOptions) => void | Response | Promise<void | Response>;
+  onSessionRefreshSuccess?: (options: RefreshSuccessOptions) => void | Promise<void>;
+  redirectToAuthOnRefreshFailure?: boolean;
 } & (
   | {
       storage?: never;
