@@ -54,6 +54,8 @@ export async function withAuth(args: LoaderFunctionArgs): Promise<UserInfo | NoU
   } = getClaimsFromAccessToken(session.accessToken);
 
   if (Date.now() >= exp * 1000) {
+    // The access token is expired. This function does not handle token refresh.
+    // Ensure that token refresh is implemented in the parent/root loader as documented.
     console.warn('Access token expired for user');
   }
 
