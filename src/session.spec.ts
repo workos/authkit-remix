@@ -423,6 +423,39 @@ describe('session', () => {
         );
       });
 
+      it('should merge plain objects with auth data', async () => {
+        // Create a custom object with a property that would be overwritten by auth
+        const customLoader = jest.fn().mockReturnValue({
+          customData: 'test-value',
+          // This would be overwritten if using spread operator incorrectly
+          user: {
+            id: 'custom-user-id',
+            customProperty: 'should-be-preserved',
+          },
+        });
+
+        const { data } = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
+
+        // The auth user should take precedence, but using Object.assign preserves the correct behavior
+        expect(data.user).toEqual(mockSessionData.user);
+        expect(data.customData).toBe('test-value');
+      });
+
+      it('should set session headers for plain object responses', async () => {
+        const customLoader = jest.fn().mockReturnValue({
+          customData: 'test-value',
+        });
+
+        const { data, init } = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
+
+        // Check that session headers were properly included
+        expect(getHeaderValue(init?.headers, 'Set-Cookie')).toBe('session-cookie');
+
+        // Check that the data was merged correctly
+        expect(data.customData).toBe('test-value');
+        expect(data.user).toEqual(mockSessionData.user);
+      });
+
       it('should handle custom loader response with headers', async () => {
         const customLoader = jest.fn().mockReturnValue(
           new Response(JSON.stringify({ customData: 'test-value' }), {
@@ -438,6 +471,171 @@ describe('session', () => {
         expect(getHeaderValue(init?.headers, 'Custom-Header')).toBe('test-header');
         expect(getHeaderValue(init?.headers, 'Content-Type')).toBe('application/json');
 
+        expect(data).toEqual(
+          expect.objectContaining({
+            customData: 'test-value',
+            user: mockSessionData.user,
+          }),
+        );
+      });
+
+      it('passes through the response when JSON parsing fails', async () => {
+        // Test invalid JSON handling without accessing the body
+        // Create a spied version of the native response.json method that will throw
+        const jsonError = new Error('Invalid JSON');
+        const jsonSpy = jest.spyOn(Response.prototype, 'json').mockRejectedValue(jsonError);
+
+        // Create a response with the right content type but that will throw on json()
+        const mockResponse = new Response('', {
+          headers: {
+            'Content-Type': 'application/json',
+            'Custom-Header': 'test-header',
+          },
+        });
+
+        const customLoader = jest.fn().mockReturnValue(mockResponse);
+
+        // Get the result
+        const result = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
+
+        // Verify we get a response back (not a DataWithResponseInit)
+        assertIsResponse(result);
+
+        // Verify headers
+        expect(result.headers.get('Custom-Header')).toBe('test-header');
+        expect(result.headers.get('Content-Type')).toBe('application/json');
+        expect(result.headers.get('Set-Cookie')).toBe('session-cookie');
+
+        // Clean up the spy
+        jsonSpy.mockRestore();
+      });
+
+      it('should properly merge object headers from DataWithResponseInit', async () => {
+        // Mock the data() function by creating an object that matches DataWithResponseInit structure
+        const dataResponse = {
+          type: 'DataWithResponseInit',
+          data: { customData: 'test-value' },
+          init: {
+            headers: {
+              'Custom-Header': 'test-header',
+              'X-Custom-Meta': 'meta-value',
+            },
+          },
+        };
+
+        const customLoader = jest.fn().mockReturnValue(dataResponse);
+
+        const { data, init } = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
+
+        // Check that both original headers and session headers were merged
+        expect(getHeaderValue(init?.headers, 'Custom-Header')).toBe('test-header');
+        expect(getHeaderValue(init?.headers, 'X-Custom-Meta')).toBe('meta-value');
+        expect(getHeaderValue(init?.headers, 'Set-Cookie')).toBe('session-cookie');
+
+        // Check that the data was properly merged
+        expect(data).toEqual(
+          expect.objectContaining({
+            customData: 'test-value',
+            user: mockSessionData.user,
+          }),
+        );
+      });
+
+      it('should merge Headers instance from DataWithResponseInit', async () => {
+        // Create Headers instance
+        const headerInstance = new Headers();
+        headerInstance.append('Custom-Header', 'test-header');
+        headerInstance.append('X-Custom-Meta', 'meta-value');
+
+        // Mock the data() function with Headers instance
+        const dataResponse = {
+          type: 'DataWithResponseInit',
+          data: { customData: 'test-value' },
+          init: {
+            headers: headerInstance,
+          },
+        };
+
+        const customLoader = jest.fn().mockReturnValue(dataResponse);
+
+        const { data, init } = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
+
+        // Check that both original headers and session headers were merged
+        expect(getHeaderValue(init?.headers, 'Custom-Header')).toBe('test-header');
+        expect(getHeaderValue(init?.headers, 'X-Custom-Meta')).toBe('meta-value');
+        expect(getHeaderValue(init?.headers, 'Set-Cookie')).toBe('session-cookie');
+
+        // Check that the data was properly merged
+        expect(data).toEqual(
+          expect.objectContaining({
+            customData: 'test-value',
+            user: mockSessionData.user,
+          }),
+        );
+      });
+
+      it('handles array-valued headers in DataWithResponseInit', async () => {
+        // Mock the data() function with headers containing array values
+        const dataResponse = {
+          type: 'DataWithResponseInit',
+          data: { customData: 'test-value' },
+          init: {
+            headers: {
+              'X-Multiple-Values': ['value1', 'value2'],
+              'Custom-Header': 'single-value',
+            },
+          },
+        };
+
+        const customLoader = jest.fn().mockReturnValue(dataResponse);
+
+        const { data, init } = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
+
+        // We can't directly test for multiple header values since getHeaderValue only returns one
+        // But we can check that headers were set properly
+        expect(getHeaderValue(init?.headers, 'Custom-Header')).toBe('single-value');
+        expect(getHeaderValue(init?.headers, 'Set-Cookie')).toBe('session-cookie');
+
+        // For multiple values, check if at least one value got through
+        // The Headers API appends multiple values for the same header
+        expect(getHeaderValue(init?.headers, 'X-Multiple-Values')).not.toBeNull();
+
+        // Check that the data was properly merged
+        expect(data).toEqual(
+          expect.objectContaining({
+            customData: 'test-value',
+            user: mockSessionData.user,
+          }),
+        );
+      });
+
+      it('preserves status and statusText from DataWithResponseInit', async () => {
+        // Mock the data() function with status and statusText
+        const dataResponse = {
+          type: 'DataWithResponseInit',
+          data: { customData: 'test-value' },
+          init: {
+            headers: {
+              'Custom-Header': 'test-header',
+            },
+            status: 201,
+            statusText: 'Created',
+          },
+        };
+
+        const customLoader = jest.fn().mockReturnValue(dataResponse);
+
+        const { data, init } = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
+
+        // Check that status and statusText were preserved
+        expect(init?.status).toBe(201);
+        expect(init?.statusText).toBe('Created');
+
+        // Check that headers were still merged
+        expect(getHeaderValue(init?.headers, 'Custom-Header')).toBe('test-header');
+        expect(getHeaderValue(init?.headers, 'Set-Cookie')).toBe('session-cookie');
+
+        // Check that the data was properly merged
         expect(data).toEqual(
           expect.objectContaining({
             customData: 'test-value',

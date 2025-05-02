@@ -14,7 +14,7 @@ import { sealData, unsealData } from 'iron-session';
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
 import { getConfig } from './config.js';
 import { configureSessionStorage, getSessionStorage } from './sessionStorage.js';
-import { isResponse, isRedirect, isJsonResponse } from './utils.js';
+import { isResponse, isRedirect, isJsonResponse, isDataWithResponseInit } from './utils.js';
 
 // must be a type since this is a subtype of response
 // interfaces must conform to the types they extend
@@ -411,34 +411,86 @@ async function handleAuthLoader(
     return data(auth, session ? { headers: { ...session.headers } } : undefined);
   }
 
-  // If there's a custom loader, get the resulting data and return it with our
-  // auth data plus session cookie header
+  // Call the user's loader function
   const loaderResult = await loader({ ...args, auth: auth as AuthorizedData });
 
+  // Special handling for DataWithResponseInit (from data())
+  if (isDataWithResponseInit(loaderResult)) {
+    const dataResponse = loaderResult;
+    // Use Headers API to properly handle headers
+    const mergedHeaders = new Headers();
+
+    // Add all headers from the original response
+    if (dataResponse.init?.headers) {
+      const origHeaders = dataResponse.init.headers;
+      if (origHeaders instanceof Headers) {
+        origHeaders.forEach((value, key) => {
+          mergedHeaders.append(key, value);
+        });
+      } else if (typeof origHeaders === 'object') {
+        // Handle plain object headers
+        Object.entries(origHeaders).forEach(([key, value]) => {
+          if (Array.isArray(value)) {
+            value.forEach((v) => mergedHeaders.append(key, v));
+          } else if (value) {
+            mergedHeaders.append(key, value);
+          }
+        });
+      }
+    }
+
+    // Add session cookie if present
+    if (session?.headers?.['Set-Cookie']) {
+      mergedHeaders.append('Set-Cookie', session.headers['Set-Cookie']);
+    }
+
+    // Create a new data response with the merged data and headers
+    return data(Object.assign({}, dataResponse.data, auth), {
+      ...dataResponse.init,
+      headers: mergedHeaders,
+    });
+  }
+
+  // Handle standard Response objects
   if (isResponse(loaderResult)) {
-    // If the result is a redirect, return it unedited
     if (isRedirect(loaderResult)) {
       throw loaderResult;
     }
 
+    // Create a new Response with the original as init
     const newResponse = new Response(loaderResult.body, loaderResult);
 
-    if (session) {
+    // Add the session cookie if it exists
+    if (session?.headers?.['Set-Cookie']) {
       newResponse.headers.append('Set-Cookie', session.headers['Set-Cookie']);
     }
 
+    // If it's not JSON, return as-is
     if (!isJsonResponse(newResponse)) {
       return newResponse;
     }
 
-    const responseData = await newResponse.json();
+    try {
+      // For JSON responses, we need to extract all data and headers
+      const responseData = await newResponse.json();
 
-    return data({ ...responseData, ...auth }, newResponse);
+      // Use Headers directly
+      const headers = new Headers(newResponse.headers);
+
+      // Return the final data response
+      return data(Object.assign({}, responseData, auth), {
+        headers,
+        status: newResponse.status,
+        statusText: newResponse.statusText,
+      });
+    } catch (error) {
+      // If parsing JSON fails, return the original response
+      return newResponse;
+    }
   }
 
-  // If the loader returns a non-Response, assume it's a data object
-  // istanbul ignore next
-  return data({ ...loaderResult, ...auth }, session ? { headers: { ...session.headers } } : undefined);
+  // For plain objects (not Response or DataWithResponseInit)
+  return data(Object.assign({}, loaderResult, auth), session ? { headers: { ...session.headers } } : undefined);
 }
 
 export async function terminateSession(request: Request, { returnTo }: { returnTo?: string } = {}) {
