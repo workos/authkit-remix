@@ -470,16 +470,20 @@ export async function terminateSession(request: Request, { returnTo }: { returnT
   });
 }
 
-function getClaimsFromAccessToken(accessToken: string) {
+export function getClaimsFromAccessToken(accessToken: string) {
   const {
     sid: sessionId,
     org_id: organizationId,
     role,
     permissions,
     entitlements,
+    exp,
+    iss,
   } = decodeJwt<AccessToken>(accessToken);
 
   return {
+    iss,
+    exp,
     sessionId,
     organizationId,
     role,
@@ -488,7 +492,7 @@ function getClaimsFromAccessToken(accessToken: string) {
   };
 }
 
-async function getSessionFromCookie(cookie: string, session?: SessionData) {
+export async function getSessionFromCookie(cookie: string, session?: SessionData) {
   const { getSession } = await getSessionStorage();
   if (!session) {
     session = await getSession(cookie);

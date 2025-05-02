@@ -37,6 +37,28 @@ export interface AccessToken {
   entitlements?: string[];
 }
 
+export interface UserInfo {
+  user: User;
+  sessionId: string;
+  organizationId?: string;
+  role?: string;
+  permissions?: string[];
+  entitlements?: string[];
+  impersonator?: Impersonator;
+  accessToken: string;
+}
+
+export interface NoUserInfo {
+  user: null;
+  sessionId?: undefined;
+  organizationId?: undefined;
+  role?: undefined;
+  permissions?: undefined;
+  entitlements?: undefined;
+  impersonator?: undefined;
+  accessToken?: undefined;
+}
+
 export type AuthKitLoaderOptions = {
   ensureSignedIn?: boolean;
   debug?: boolean;
