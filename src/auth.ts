@@ -1,6 +1,8 @@
-import { data, redirect } from '@remix-run/node';
+import { LoaderFunctionArgs, data, redirect } from '@remix-run/node';
 import { getAuthorizationUrl } from './get-authorization-url.js';
-import { refreshSession, terminateSession } from './session.js';
+import { NoUserInfo, UserInfo } from './interfaces.js';
+import { getClaimsFromAccessToken, getSessionFromCookie, refreshSession, terminateSession } from './session.js';
+import { getConfig } from './config.js';
 
 export async function getSignInUrl(returnPathname?: string) {
   return getAuthorizationUrl({ returnPathname, screenHint: 'sign-in' });
@@ -12,6 +14,61 @@ export async function getSignUpUrl(returnPathname?: string) {
 
 export async function signOut(request: Request, options?: { returnTo?: string }) {
   return await terminateSession(request, options);
+}
+
+/**
+ * Given a loader's args, this function will check if the user is authenticated.
+ * If the user is authenticated, it will return their information.
+ * If the user is not authenticated, it will return an object with user set to null.
+ * IMPORTANT: This authkitLoader must be used in a parent/root loader
+ * to handle session refresh and cookie management.
+ * @param args - The loader's arguments.
+ * @returns An object containing user information
+ */
+export async function withAuth(args: LoaderFunctionArgs): Promise<UserInfo | NoUserInfo> {
+  const { request } = args;
+  const cookieHeader = request.headers.get('Cookie') as string;
+  const cookieName = getConfig('cookieName');
+
+  // Simple check without environment detection
+  if (!cookieHeader || !cookieHeader.includes(cookieName)) {
+    console.warn(
+      `[AuthKit] No session cookie "${cookieName}" found. ` + `Make sure authkitLoader is used in a parent/root route.`,
+    );
+  }
+  const session = await getSessionFromCookie(cookieHeader);
+
+  if (!session?.accessToken) {
+    return {
+      user: null,
+    };
+  }
+
+  const {
+    sessionId,
+    organizationId,
+    permissions,
+    entitlements,
+    role,
+    exp = 0,
+  } = getClaimsFromAccessToken(session.accessToken);
+
+  if (Date.now() >= exp * 1000) {
+    // The access token is expired. This function does not handle token refresh.
+    // Ensure that token refresh is implemented in the parent/root loader as documented.
+    console.warn('Access token expired for user');
+  }
+
+  return {
+    user: session.user,
+    sessionId,
+    organizationId,
+    role,
+    permissions,
+    entitlements,
+    impersonator: session.impersonator,
+    accessToken: session.accessToken,
+  };
 }
 
 /**
