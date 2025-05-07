@@ -272,3 +272,75 @@ export const loader = (args: LoaderFunctionArgs) =>
     { debug: true },
   );
 ```
+
+## Customizing Session Storage
+
+By default, AuthKit for Remix uses cookie-based session storage with these settings:
+
+```typescript
+{
+  name: "wos-session", // Default or WORKOS_COOKIE_NAME if set
+  path: "/",
+  httpOnly: true,
+  secure: true, // When redirect URI uses HTTPS
+  sameSite: "lax",
+  maxAge: 34560000, // 400 days (configurable via WORKOS_COOKIE_MAX_AGE)
+  secrets: [/* your cookie password, configurable via WORKOS_COOKIE_PASSWORD */],
+}
+```
+
+### Custom Session Storage
+
+You can provide your own session storage implementation to both `authkitLoader` and `authLoader`:
+
+```typescript
+import { createMemorySessionStorage } from "@remix-run/node";
+import { authkitLoader, authLoader } from "@workos-inc/authkit-remix";
+
+// Create memory-based session storage
+const memoryStorage = createMemorySessionStorage({
+  cookie: {
+    name: "auth-session",
+    secrets: ["test-secret"],
+    sameSite: "lax",
+    path: "/",
+    httpOnly: true,
+    secure: false, // Use false for testing
+    maxAge: 60 * 60 * 24 // 1 day
+  }
+});
+
+// In your root loader
+export const loader = (args) => authkitLoader(args, {
+  storage: memoryStorage,
+  cookie: { name: "auth-session" }
+});
+
+// In your callback route
+export const loader = authLoader({
+  storage: memoryStorage,
+  cookie: { name: "auth-session" }
+});
+```
+
+For code reuse and consistency, consider using a shared function:
+
+```typescript
+// app/lib/session.ts
+export function getAuthStorage() {
+  const storage = createCookieSessionStorage({/* config */});
+  return { storage, cookie: { name: "my-custom-session" } };
+}
+
+// Then in your routes
+import { getAuthStorage } from "~/lib/session";
+export const loader = (args) => authkitLoader(args, {
+  ...getAuthStorage(),
+  // Other options...
+});
+```
+
+> [!NOTE]
+>When deploying to serverless environments like AWS Lambda, ensure you pass the same storage configuration to both your main routes and the callback route to handle cold starts properly.
+
+AuthKit works with any session storage that implements Remix's `SessionStorage` interface, including Redis-based or database-backed implementations.

@@ -2,13 +2,14 @@ import { LoaderFunctionArgs, data, redirect } from '@remix-run/node';
 import { getConfig } from './config.js';
 import { HandleAuthOptions } from './interfaces.js';
 import { encryptSession } from './session.js';
-import { getSessionStorage } from './sessionStorage.js';
+import { configureSessionStorage } from './sessionStorage.js';
 import { getWorkOS } from './workos.js';
 
 export function authLoader(options: HandleAuthOptions = {}) {
   return async function loader({ request }: LoaderFunctionArgs) {
-    const { getSession, commitSession, cookieName } = await getSessionStorage();
-    const { returnPathname: returnPathnameOption = '/', onSuccess } = options;
+    const { storage, cookie, returnPathname: returnPathnameOption = '/', onSuccess } = options;
+    const cookieName = cookie?.name ?? getConfig('cookieName');
+    const { getSession, commitSession } = await configureSessionStorage({ storage, cookieName });
 
     const url = new URL(request.url);
 

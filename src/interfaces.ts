@@ -3,10 +3,19 @@ import type { OauthTokens, User } from '@workos-inc/node';
 
 export type DataWithResponseInit<T> = ReturnType<typeof data<T>>;
 
-export interface HandleAuthOptions {
+export type HandleAuthOptions = {
   returnPathname?: string;
   onSuccess?: (data: AuthLoaderSuccessData) => void | Promise<void>;
-}
+} & (
+  | {
+      storage?: never;
+      cookie?: SessionIdStorageStrategy['cookie'];
+    }
+  | {
+      storage: SessionStorage;
+      cookie: SessionIdStorageStrategy['cookie'];
+    }
+);
 
 export interface AuthLoaderSuccessData {
   accessToken: string;
