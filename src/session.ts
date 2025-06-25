@@ -115,10 +115,12 @@ async function updateSession(request: Request, debug: boolean) {
     // istanbul ignore next
     if (debug) console.log(`Session invalid. Refreshing access token that ends in ${session.accessToken.slice(-10)}`);
 
+    const { organizationId } = getClaimsFromAccessToken(session.accessToken);
     // If the session is invalid (i.e. the access token has expired) attempt to re-authenticate with the refresh token
     const { accessToken, refreshToken } = await getWorkOS().userManagement.authenticateWithRefreshToken({
       clientId: getConfig('clientId'),
       refreshToken: session.refreshToken,
+      organizationId,
     });
 
     // istanbul ignore next
