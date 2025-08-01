@@ -688,7 +688,7 @@ describe('session', () => {
       it('should return null from getAccessToken for unauthenticated users', async () => {
         // Mock no session
         unsealData.mockResolvedValue(null);
-        
+
         const customLoader = jest.fn().mockImplementation(({ getAccessToken }) => {
           const token = getAccessToken();
           return { retrievedToken: token };

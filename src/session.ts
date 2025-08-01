@@ -165,7 +165,9 @@ type AuthLoader<Data> = (
   args: LoaderFunctionArgs & { auth: AuthorizedData | UnauthorizedData; getAccessToken: () => string | null },
 ) => LoaderReturnValue<Data>;
 
-type AuthorizedAuthLoader<Data> = (args: LoaderFunctionArgs & { auth: AuthorizedData; getAccessToken: () => string }) => LoaderReturnValue<Data>;
+type AuthorizedAuthLoader<Data> = (
+  args: LoaderFunctionArgs & { auth: AuthorizedData; getAccessToken: () => string },
+) => LoaderReturnValue<Data>;
 
 /**
  * This loader handles authentication state, session management, and access token refreshing
@@ -412,7 +414,7 @@ async function handleAuthLoader(
   // If there's a custom loader, get the resulting data and return it with our
   // auth data plus session cookie header
   let loaderResult;
-  
+
   if (auth.user) {
     // Authorized case
     const getAccessToken = () => {
@@ -421,7 +423,11 @@ async function handleAuthLoader(
       }
       return session.accessToken;
     };
-    loaderResult = await (loader as AuthorizedAuthLoader<unknown>)({ ...args, auth: auth as AuthorizedData, getAccessToken });
+    loaderResult = await (loader as AuthorizedAuthLoader<unknown>)({
+      ...args,
+      auth: auth as AuthorizedData,
+      getAccessToken,
+    });
   } else {
     // Unauthorized case
     const getAccessToken = () => null;
