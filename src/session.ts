@@ -342,7 +342,6 @@ export async function authkitLoader<Data = unknown>(
       entitlements = [],
     } = getClaimsFromAccessToken(session.accessToken);
 
-    const cookieSession = await getSession(request.headers.get('Cookie'));
     const { impersonator = null } = session;
 
     // checking for 'headers' in session determines if the session was refreshed or not
