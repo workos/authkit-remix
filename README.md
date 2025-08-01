@@ -144,7 +144,7 @@ export const loader = (args: LoaderFunctionArgs) => authkitLoader(args);
 
 export function App() {
   // Retrieves the user from the session or returns `null` if no user is signed in
-  // Other supported values include `sessionId`, `accessToken`, `organizationId`,
+  // Other supported values include `sessionId`, `organizationId`,
   // `role`, `permissions`, `entitlements`, and `impersonator`.
   const { user, signInUrl, signUpUrl } = useLoaderData<typeof loader>();
 
@@ -222,20 +222,22 @@ export async function action({ request }: ActionFunctionArgs) {
 
 ### Get the access token
 
-Sometimes it is useful to obtain the access token directly, for instance to make API requests to another service.
+Access tokens are available through the `getAccessToken()` function within your loader. This design encourages server-side token usage while making the security implications explicit.
 
 ```tsx
 import type { LoaderFunctionArgs } from '@remix-run/node';
 import { authkitLoader } from '@workos-inc/authkit-remix';
 
 export const loader = (args: LoaderFunctionArgs) =>
-  authkitLoader(args, async ({ auth }) => {
-    const { accessToken } = auth;
-
-    if (!accessToken) {
-      // Not signed in
+  authkitLoader(args, async ({ auth, getAccessToken }) => {
+    if (!auth.user) {
+      // Not signed in - getAccessToken() would return null
+      return { data: null };
     }
 
+    // Explicitly call the function to get the access token
+    const accessToken = getAccessToken();
+    
     const serviceData = await fetch('/api/path', {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -243,10 +245,99 @@ export const loader = (args: LoaderFunctionArgs) =>
     });
 
     return {
-      data: serviceData,
+      data: await serviceData.json(),
     };
   });
 ```
+
+#### Security Considerations
+
+By default, access tokens are not included in the data sent to React components. This helps prevent unintentional token exposure in:
+- Browser developer tools
+- HTML source code  
+- Client-side logs or error reporting
+
+If you need to expose the access token to client-side code, you can explicitly return it from your loader:
+
+```tsx
+export const loader = (args: LoaderFunctionArgs) =>
+  authkitLoader(args, async ({ auth, getAccessToken }) => {
+    const accessToken = getAccessToken();
+    
+    return {
+      // Only expose to client if absolutely necessary
+      accessToken,
+      userData: await fetchUserData(accessToken)
+    };
+  }, { ensureSignedIn: true });
+```
+
+**Note:** Only expose access tokens to the client when necessary for your use case (e.g., making direct API calls from the browser). Consider alternatives like:
+- Making API calls server-side in your loaders
+- Creating proxy endpoints in your application
+- Using separate client-specific tokens with limited scope
+
+#### Using with `ensureSignedIn`
+
+When using the `ensureSignedIn` option, you can be confident that `getAccessToken()` will always return a valid token:
+
+```tsx
+export const loader = (args: LoaderFunctionArgs) =>
+  authkitLoader(args, async ({ auth, getAccessToken }) => {
+    // With ensureSignedIn: true, the user is guaranteed to be authenticated
+    const accessToken = getAccessToken();
+    
+    // Use the token for your API calls
+    const data = await fetchProtectedData(accessToken);
+    
+    return { data };
+  }, { ensureSignedIn: true });
+```
+
+### Using withAuth for low-level access
+
+For advanced use cases, the `withAuth` function provides direct access to authentication data, including the access token. Unlike `authkitLoader`, this function:
+
+- Does not handle automatic token refresh
+- Does not manage cookies or session updates  
+- Returns the access token directly as a property
+- Requires manual redirect handling for unauthenticated users
+
+```tsx
+import { withAuth } from '@workos-inc/authkit-remix';
+import { redirect } from '@remix-run/node';
+import type { LoaderFunctionArgs } from '@remix-run/node';
+
+export const loader = async (args: LoaderFunctionArgs) => {
+  const auth = await withAuth(args);
+  
+  if (!auth.user) {
+    // Manual redirect - withAuth doesn't handle this automatically
+    throw redirect('/sign-in');
+  }
+  
+  // Access token is directly available as a property
+  const { accessToken, user, sessionId } = auth;
+  
+  // Use the token for server-side operations
+  const apiData = await fetch('https://api.example.com/data', {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  
+  // Be careful what you return - accessToken will be exposed if included
+  return {
+    user,
+    apiData: await apiData.json(),
+    // accessToken, // ⚠️ Only include if client-side access is necessary
+  };
+};
+```
+
+**When to use `withAuth` vs `authkitLoader`:**
+
+- Use `authkitLoader` for most cases - it handles token refresh, cookies, and provides safer defaults
+- Use `withAuth` when you need more control or are building custom authentication flows
+- `withAuth` is useful for API routes or middleware where you don't need the full loader functionality
 
 ### Debugging
 

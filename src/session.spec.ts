@@ -275,14 +275,12 @@ describe('session', () => {
 
         expect(data).toEqual({
           user: null,
-          accessToken: null,
           impersonator: null,
           organizationId: null,
           permissions: null,
           entitlements: null,
           role: null,
           sessionId: null,
-          sealedSession: null,
         });
       });
 
@@ -393,14 +391,12 @@ describe('session', () => {
 
         expect(data).toEqual({
           user: mockSessionData.user,
-          accessToken: mockSessionData.accessToken,
           impersonator: null,
           organizationId: 'org-123',
           permissions: ['read', 'write'],
           entitlements: ['premium'],
           role: 'admin',
           sessionId: 'test-session-id',
-          sealedSession: 'encrypted-jwt',
         });
       });
 
@@ -417,7 +413,6 @@ describe('session', () => {
             customData: 'test-value',
             metadata: { key: 'value' },
             user: mockSessionData.user,
-            accessToken: mockSessionData.accessToken,
             sessionId: 'test-session-id',
           }),
         );
@@ -662,6 +657,53 @@ describe('session', () => {
           expect(response.headers.get('X-Redirect-Reason')).toBe('test');
         }
       });
+
+      it('should provide getAccessToken function to custom loader', async () => {
+        const customLoader = jest.fn().mockImplementation(({ getAccessToken }) => {
+          const token = getAccessToken();
+          return { retrievedToken: token };
+        });
+
+        const { data } = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
+
+        // Verify the loader was called with getAccessToken function
+        expect(customLoader).toHaveBeenCalledWith(
+          expect.objectContaining({
+            auth: expect.objectContaining({
+              user: mockSessionData.user,
+            }),
+            getAccessToken: expect.any(Function),
+          }),
+        );
+
+        // Verify the token was retrieved correctly
+        expect(data).toEqual(
+          expect.objectContaining({
+            retrievedToken: mockSessionData.accessToken,
+            user: mockSessionData.user,
+          }),
+        );
+      });
+
+      it('should return null from getAccessToken for unauthenticated users', async () => {
+        // Mock no session
+        unsealData.mockResolvedValue(null);
+        
+        const customLoader = jest.fn().mockImplementation(({ getAccessToken }) => {
+          const token = getAccessToken();
+          return { retrievedToken: token };
+        });
+
+        const { data } = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
+
+        // Verify getAccessToken returned null
+        expect(data).toEqual(
+          expect.objectContaining({
+            retrievedToken: null,
+            user: null,
+          }),
+        );
+      });
     });
 
     describe('session refresh', () => {
@@ -730,7 +772,6 @@ describe('session', () => {
         // Verify the response contains the new token data
         expect(data).toEqual(
           expect.objectContaining({
-            accessToken: 'new.valid.token',
             sessionId: 'new-session-id',
             organizationId: 'org-123',
             role: 'user',
