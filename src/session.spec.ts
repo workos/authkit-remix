@@ -11,10 +11,15 @@ import { authkitLoader, encryptSession, refreshSession, terminateSession } from 
 import { assertIsResponse } from './test-utils/test-helpers.js';
 import { getWorkOS } from './workos.js';
 import { getConfig } from './config.js';
+import { getAuthorizationUrl } from './get-authorization-url.js';
 
 jest.mock('./sessionStorage.js', () => ({
   configureSessionStorage: jest.fn(),
   getSessionStorage: jest.fn(),
+}));
+
+jest.mock('./get-authorization-url.js', () => ({
+  getAuthorizationUrl: jest.fn(),
 }));
 
 // Mock dependencies
@@ -39,6 +44,7 @@ const authenticateWithRefreshToken = jest.mocked(workos.userManagement.authentic
 const getSessionStorage = jest.mocked(getSessionStorageMock);
 const configureSessionStorage = jest.mocked(configureSessionStorageMock);
 const jwtVerify = jest.mocked(jose.jwtVerify);
+const getAuthorizationUrlMock = jest.mocked(getAuthorizationUrl);
 
 function getHeaderValue(headers: HeadersInit | undefined, name: string): string | null {
   if (!headers) {
@@ -113,6 +119,10 @@ describe('session', () => {
       destroySession,
       commitSession,
     });
+    
+    // Reset getAuthorizationUrl mock
+    getAuthorizationUrlMock.mockReset();
+    getAuthorizationUrlMock.mockResolvedValue('https://auth.workos.com/oauth/authorize');
   });
 
   describe('encryptSession', () => {
@@ -793,17 +803,26 @@ describe('session', () => {
         expect(onSessionRefreshSuccess).toHaveBeenCalled();
       });
 
-      it('should redirect to root when refresh fails', async () => {
+      it('should redirect to authorization URL preserving returnPathname when refresh fails', async () => {
         authenticateWithRefreshToken.mockRejectedValue(new Error('Refresh token invalid'));
+        
+        // Setup the mock to return a URL with state parameter
+        getAuthorizationUrlMock.mockResolvedValue('https://auth.workos.com/oauth/authorize?state=abc123');
 
         try {
-          await authkitLoader(createLoaderArgs(createMockRequest()));
+          const mockRequest = createMockRequest('test-cookie', 'https://app.example.com/dashboard/settings');
+          await authkitLoader(createLoaderArgs(mockRequest));
           fail('Expected redirect response to be thrown');
         } catch (response: unknown) {
           assertIsResponse(response);
           expect(response.status).toBe(302);
-          expect(response.headers.get('Location')).toBe('/');
+          expect(response.headers.get('Location')).toBe('https://auth.workos.com/oauth/authorize?state=abc123');
           expect(response.headers.get('Set-Cookie')).toBe('destroyed-session-cookie');
+          
+          // Verify getAuthorizationUrl was called with the correct returnPathname
+          expect(getAuthorizationUrlMock).toHaveBeenCalledWith({
+            returnPathname: '/dashboard/settings',
+          });
         }
       });
 
