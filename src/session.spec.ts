@@ -119,7 +119,7 @@ describe('session', () => {
       destroySession,
       commitSession,
     });
-    
+
     // Reset getAuthorizationUrl mock
     getAuthorizationUrlMock.mockReset();
     getAuthorizationUrlMock.mockResolvedValue('https://auth.workos.com/oauth/authorize');
@@ -805,7 +805,7 @@ describe('session', () => {
 
       it('should redirect to authorization URL preserving returnPathname when refresh fails', async () => {
         authenticateWithRefreshToken.mockRejectedValue(new Error('Refresh token invalid'));
-        
+
         // Setup the mock to return a URL with state parameter
         getAuthorizationUrlMock.mockResolvedValue('https://auth.workos.com/oauth/authorize?state=abc123');
 
@@ -818,7 +818,7 @@ describe('session', () => {
           expect(response.status).toBe(302);
           expect(response.headers.get('Location')).toBe('https://auth.workos.com/oauth/authorize?state=abc123');
           expect(response.headers.get('Set-Cookie')).toBe('destroyed-session-cookie');
-          
+
           // Verify getAuthorizationUrl was called with the correct returnPathname
           expect(getAuthorizationUrlMock).toHaveBeenCalledWith({
             returnPathname: '/dashboard/settings',
