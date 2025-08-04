@@ -388,7 +388,8 @@ export async function authkitLoader<Data = unknown>(
         }
       }
 
-      throw redirect('/', {
+      const returnPathname = getReturnPathname(request.url);
+      throw redirect(await getAuthorizationUrl({ returnPathname }), {
         headers: {
           'Set-Cookie': await destroySession(cookieSession),
         },
