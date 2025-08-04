@@ -1,6 +1,6 @@
 {
   "name": "@workos-inc/authkit-remix",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "Authentication and session helpers for using WorkOS & AuthKit with Remix",
   "sideEffects": false,
   "type": "commonjs",
