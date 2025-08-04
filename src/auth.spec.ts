@@ -407,18 +407,13 @@ describe('auth', () => {
       const result = await withAuth(createMockRequest('wos-session=expired-session-data'));
 
       // Should warn about expired token
-      expect(consoleWarnSpy).toHaveBeenCalledWith('Access token expired for user');
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        '[AuthKit] Access token expired. Ensure authkitLoader is used in a parent/root route to handle automatic token refresh.'
+      );
 
-      // Result should still contain user info
+      // Result should return null user when token is expired
       expect(result).toEqual({
-        user: mockSession.user,
-        sessionId: mockClaims.sessionId,
-        organizationId: mockClaims.organizationId,
-        role: mockClaims.role,
-        permissions: mockClaims.permissions,
-        entitlements: mockClaims.entitlements,
-        impersonator: undefined,
-        accessToken: mockSession.accessToken,
+        user: null,
       });
 
       consoleWarnSpy.mockRestore();

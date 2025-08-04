@@ -56,7 +56,12 @@ export async function withAuth(args: LoaderFunctionArgs): Promise<UserInfo | NoU
   if (Date.now() >= exp * 1000) {
     // The access token is expired. This function does not handle token refresh.
     // Ensure that token refresh is implemented in the parent/root loader as documented.
-    console.warn('Access token expired for user');
+    console.warn(
+      '[AuthKit] Access token expired. Ensure authkitLoader is used in a parent/root route to handle automatic token refresh.'
+    );
+    return {
+      user: null,
+    };
   }
 
   return {
