@@ -408,7 +408,7 @@ describe('auth', () => {
 
       // Should warn about expired token
       expect(consoleWarnSpy).toHaveBeenCalledWith(
-        '[AuthKit] Access token expired. Ensure authkitLoader is used in a parent/root route to handle automatic token refresh.'
+        '[AuthKit] Access token expired. Ensure authkitLoader is used in a parent/root route to handle automatic token refresh.',
       );
 
       // Result should return null user when token is expired
