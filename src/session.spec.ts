@@ -743,6 +743,20 @@ describe('session', () => {
         authenticateWithRefreshToken.mockResolvedValue({
           accessToken: 'new.valid.token',
           refreshToken: 'new.refresh.token',
+          user: {
+            object: 'user',
+            id: 'user-1',
+            email: 'test@example.com',
+            emailVerified: true,
+            profilePictureUrl: null,
+            firstName: 'Test',
+            lastName: 'User',
+            lastSignInAt: '2021-01-01T00:00:00Z',
+            createdAt: '2021-01-01T00:00:00Z',
+            updatedAt: '2021-01-01T00:00:00Z',
+            externalId: null,
+          },
+          impersonator: undefined,
         } as AuthenticationResponse);
 
         // Mock different JWT decoding results for expired vs new token
@@ -907,6 +921,20 @@ describe('session', () => {
       authenticateWithRefreshToken.mockResolvedValue({
         accessToken: 'new.valid.token',
         refreshToken: 'new.refresh.token',
+        user: {
+          object: 'user',
+          id: 'user-1',
+          email: 'test@example.com',
+          emailVerified: true,
+          profilePictureUrl: null,
+          firstName: 'Test',
+          lastName: 'User',
+          lastSignInAt: '2021-01-01T00:00:00Z',
+          createdAt: '2021-01-01T00:00:00Z',
+          updatedAt: '2021-01-01T00:00:00Z',
+          externalId: null,
+        },
+        impersonator: undefined,
       } as AuthenticationResponse);
 
       // Mock JWT decoding

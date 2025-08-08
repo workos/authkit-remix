@@ -45,17 +45,18 @@ export async function refreshSession(request: Request, { organizationId }: { org
   }
 
   try {
-    const { accessToken, refreshToken } = await getWorkOS().userManagement.authenticateWithRefreshToken({
-      clientId: getConfig('clientId'),
-      refreshToken: session.refreshToken,
-      organizationId,
-    });
+    const { accessToken, refreshToken, user, impersonator } =
+      await getWorkOS().userManagement.authenticateWithRefreshToken({
+        clientId: getConfig('clientId'),
+        refreshToken: session.refreshToken,
+        organizationId,
+      });
 
     const newSession = {
       accessToken,
       refreshToken,
-      user: session.user,
-      impersonator: session.impersonator,
+      user,
+      impersonator,
       headers: {} as Record<string, string>,
     };
 
@@ -76,14 +77,14 @@ export async function refreshSession(request: Request, { organizationId }: { org
     } = getClaimsFromAccessToken(accessToken);
 
     return {
-      user: session.user,
+      user,
       sessionId,
       accessToken,
       organizationId: newOrgId,
       role,
       permissions,
       entitlements,
-      impersonator: session.impersonator || null,
+      impersonator: impersonator ?? null,
       sealedSession: cookieSession.get('jwt'),
       headers: newSession.headers,
     };
@@ -117,11 +118,12 @@ async function updateSession(request: Request, debug: boolean) {
 
     const { organizationId } = getClaimsFromAccessToken(session.accessToken);
     // If the session is invalid (i.e. the access token has expired) attempt to re-authenticate with the refresh token
-    const { accessToken, refreshToken } = await getWorkOS().userManagement.authenticateWithRefreshToken({
-      clientId: getConfig('clientId'),
-      refreshToken: session.refreshToken,
-      organizationId,
-    });
+    const { accessToken, refreshToken, user, impersonator } =
+      await getWorkOS().userManagement.authenticateWithRefreshToken({
+        clientId: getConfig('clientId'),
+        refreshToken: session.refreshToken,
+        organizationId,
+      });
 
     // istanbul ignore next
     if (debug) console.log(`Refresh successful. New access token ends in ${accessToken.slice(-10)}`);
@@ -129,8 +131,8 @@ async function updateSession(request: Request, debug: boolean) {
     const newSession = {
       accessToken,
       refreshToken,
-      user: session.user,
-      impersonator: session.impersonator,
+      user,
+      impersonator,
       headers: {},
     };
 
