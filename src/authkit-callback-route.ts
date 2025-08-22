@@ -70,6 +70,14 @@ export function authLoader(options: HandleAuthOptions = {}) {
           });
         }
 
+        // Fix protocol mismatch for load balancer scenarios
+        // If WORKOS_REDIRECT_URI is HTTPS but request is HTTP, use HTTPS for redirect
+        const redirectUri = getConfig('redirectUri');
+        const configUrl = new URL(redirectUri);
+        if (configUrl.protocol === 'https:' && url.protocol === 'http:') {
+          url.protocol = 'https:';
+        }
+
         return redirect(url.toString(), {
           headers: {
             'Set-Cookie': cookie,
