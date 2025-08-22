@@ -191,4 +191,75 @@ describe('authLoader', () => {
       }),
     );
   });
+
+  it('fixes protocol mismatch for load balancer TLS termination', async () => {
+    // Set WORKOS_REDIRECT_URI to HTTPS (as configured for production)
+    const originalRedirectUri = process.env.WORKOS_REDIRECT_URI;
+    process.env.WORKOS_REDIRECT_URI = 'https://example.com/callback';
+
+    try {
+      const request = createRequestWithSearchParams(new Request('http://example.com/callback'), {
+        code: 'test-code-123',
+      });
+
+      const loader = authLoader();
+      const response = await loader({
+        request,
+        params: {},
+        context: {},
+      });
+
+      // Should be a redirect response
+      assertIsResponse(response);
+      expect(response.status).toBe(302);
+
+      // The redirect URL should be fixed to HTTPS (not HTTP)
+      const location = response.headers.get('Location');
+      expect(location).toBe('https://example.com/');
+      expect(new URL(location!).protocol).toBe('https:');
+    } finally {
+      // Restore original env var
+      if (originalRedirectUri) {
+        process.env.WORKOS_REDIRECT_URI = originalRedirectUri;
+      } else {
+        delete process.env.WORKOS_REDIRECT_URI;
+      }
+    }
+  });
+
+  it('preserves port from request URL when fixing protocol mismatch', async () => {
+    // Set WORKOS_REDIRECT_URI to HTTPS with different port
+    const originalRedirectUri = process.env.WORKOS_REDIRECT_URI;
+    process.env.WORKOS_REDIRECT_URI = 'https://example.com:8443/callback';
+
+    try {
+      const request = createRequestWithSearchParams(new Request('http://example.com:3000/callback'), {
+        code: 'test-code-123',
+      });
+
+      const loader = authLoader();
+      const response = await loader({
+        request,
+        params: {},
+        context: {},
+      });
+
+      // Should be a redirect response
+      assertIsResponse(response);
+      expect(response.status).toBe(302);
+
+      // The redirect URL should use HTTPS but preserve the request port (3000)
+      // This documents current behavior - may need adjustment if port should come from config
+      const location = response.headers.get('Location');
+      expect(location).toBe('https://example.com:3000/');
+      expect(new URL(location!).port).toBe('3000');
+    } finally {
+      // Restore original env var
+      if (originalRedirectUri) {
+        process.env.WORKOS_REDIRECT_URI = originalRedirectUri;
+      } else {
+        delete process.env.WORKOS_REDIRECT_URI;
+      }
+    }
+  });
 });
