@@ -19,7 +19,7 @@ export function authLoader(options: HandleAuthOptions = {}) {
 
     if (code) {
       try {
-        const { accessToken, refreshToken, user, impersonator, oauthTokens } =
+        const { accessToken, refreshToken, user, impersonator, oauthTokens, organizationId } =
           await getWorkOS().userManagement.authenticateWithCode({
             clientId: getConfig('clientId'),
             code,
@@ -67,6 +67,7 @@ export function authLoader(options: HandleAuthOptions = {}) {
             oauthTokens: oauthTokens ?? null,
             refreshToken,
             user,
+            organizationId: organizationId ?? null,
           });
         }
 

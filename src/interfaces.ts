@@ -23,6 +23,7 @@ export interface AuthLoaderSuccessData {
   oauthTokens: OauthTokens | null;
   refreshToken: string;
   user: User;
+  organizationId: string | null;
 }
 
 export interface RefreshErrorOptions {
