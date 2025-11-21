@@ -1,50 +1,51 @@
-import { LoaderFunctionArgs, Session as ReactRouterSession, redirect } from '@remix-run/node';
-import { AuthenticationResponse } from '@workos-inc/node';
+import { type LoaderFunctionArgs, type Session as ReactRouterSession, redirect } from '@remix-run/node';
+import type { AuthenticationResponse } from '@workos-inc/node';
 import * as ironSession from 'iron-session';
 import * as jose from 'jose';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { getConfig } from './config.js';
+import { getAuthorizationUrl } from './get-authorization-url.js';
+import type { Session } from './interfaces.js';
+import { authkitLoader, encryptSession, refreshSession, terminateSession } from './session.js';
 import {
   configureSessionStorage as configureSessionStorageMock,
   getSessionStorage as getSessionStorageMock,
 } from './sessionStorage.js';
-import { Session } from './interfaces.js';
-import { authkitLoader, encryptSession, refreshSession, terminateSession } from './session.js';
 import { assertIsResponse } from './test-utils/test-helpers.js';
 import { getWorkOS } from './workos.js';
-import { getConfig } from './config.js';
-import { getAuthorizationUrl } from './get-authorization-url.js';
 
-jest.mock('./sessionStorage.js', () => ({
-  configureSessionStorage: jest.fn(),
-  getSessionStorage: jest.fn(),
+vi.mock('./sessionStorage.js', () => ({
+  configureSessionStorage: vi.fn(),
+  getSessionStorage: vi.fn(),
 }));
 
-jest.mock('./get-authorization-url.js', () => ({
-  getAuthorizationUrl: jest.fn(),
+vi.mock('./get-authorization-url.js', () => ({
+  getAuthorizationUrl: vi.fn(),
 }));
 
 // Mock dependencies
 const fakeWorkosInstance = {
   userManagement: {
-    getAuthorizationUrl: jest.fn().mockResolvedValue('https://auth.workos.com/oauth/authorize'),
-    getLogoutUrl: jest.fn(({ sessionId }) => `https://auth.workos.com/logout/${sessionId}`),
-    getJwksUrl: jest.fn((clientId: string) => `https://auth.workos.com/oauth/jwks/${clientId}`),
-    authenticateWithRefreshToken: jest.fn(),
+    getAuthorizationUrl: vi.fn().mockResolvedValue('https://auth.workos.com/oauth/authorize'),
+    getLogoutUrl: vi.fn(({ sessionId }) => `https://auth.workos.com/logout/${sessionId}`),
+    getJwksUrl: vi.fn((clientId: string) => `https://auth.workos.com/oauth/jwks/${clientId}`),
+    authenticateWithRefreshToken: vi.fn(),
   },
 };
 
-jest.mock('./workos.js', () => ({
-  getWorkOS: jest.fn(() => fakeWorkosInstance),
+vi.mock('./workos.js', () => ({
+  getWorkOS: vi.fn(() => fakeWorkosInstance),
 }));
 
 const workos = getWorkOS();
-const unsealData = jest.mocked(ironSession.unsealData);
-const sealData = jest.mocked(ironSession.sealData);
-const getLogoutUrl = jest.mocked(workos.userManagement.getLogoutUrl);
-const authenticateWithRefreshToken = jest.mocked(workos.userManagement.authenticateWithRefreshToken);
-const getSessionStorage = jest.mocked(getSessionStorageMock);
-const configureSessionStorage = jest.mocked(configureSessionStorageMock);
-const jwtVerify = jest.mocked(jose.jwtVerify);
-const getAuthorizationUrlMock = jest.mocked(getAuthorizationUrl);
+const unsealData = vi.mocked(ironSession.unsealData);
+const sealData = vi.mocked(ironSession.sealData);
+const getLogoutUrl = vi.mocked(workos.userManagement.getLogoutUrl);
+const authenticateWithRefreshToken = vi.mocked(workos.userManagement.authenticateWithRefreshToken);
+const getSessionStorage = vi.mocked(getSessionStorageMock);
+const configureSessionStorage = vi.mocked(configureSessionStorageMock);
+const jwtVerify = vi.mocked(jose.jwtVerify);
+const getAuthorizationUrlMock = vi.mocked(getAuthorizationUrl);
 
 function getHeaderValue(headers: HeadersInit | undefined, name: string): string | null {
   if (!headers) {
@@ -63,28 +64,28 @@ function getHeaderValue(headers: HeadersInit | undefined, name: string): string 
   return headers[name] ?? null;
 }
 
-jest.mock('jose', () => ({
-  createRemoteJWKSet: jest.fn(),
-  jwtVerify: jest.fn(),
-  decodeJwt: jest.fn(() => ({
+vi.mock('jose', () => ({
+  createRemoteJWKSet: vi.fn(),
+  jwtVerify: vi.fn(),
+  decodeJwt: vi.fn(() => ({
     sid: 'test-session-id',
   })),
 }));
 
-jest.mock('iron-session', () => ({
-  unsealData: jest.fn(),
-  sealData: jest.fn(),
+vi.mock('iron-session', () => ({
+  unsealData: vi.fn(),
+  sealData: vi.fn(),
 }));
 
 describe('session', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: Expected
   const createMockSession = (overrides?: Record<string, any>): ReactRouterSession =>
     ({
-      has: jest.fn(),
-      get: jest.fn(),
-      set: jest.fn(),
-      unset: jest.fn(),
-      flash: jest.fn(),
+      has: vi.fn(),
+      get: vi.fn(),
+      set: vi.fn(),
+      unset: vi.fn(),
+      flash: vi.fn(),
       id: 'test-session-id',
       data: {},
       ...overrides,
@@ -97,14 +98,17 @@ describe('session', () => {
       }),
     });
 
-  let getSession: jest.Mock;
-  let destroySession: jest.Mock;
-  let commitSession: jest.Mock;
+  // biome-ignore lint/suspicious/noExplicitAny: Expected
+  let getSession: any;
+  // biome-ignore lint/suspicious/noExplicitAny: Expected
+  let destroySession: any;
+  // biome-ignore lint/suspicious/noExplicitAny: Expected
+  let commitSession: any;
 
   beforeEach(async () => {
-    getSession = jest.fn();
-    destroySession = jest.fn().mockResolvedValue('destroyed-session-cookie');
-    commitSession = jest.fn();
+    getSession = vi.fn();
+    destroySession = vi.fn().mockResolvedValue('destroyed-session-cookie');
+    commitSession = vi.fn();
 
     getSessionStorage.mockResolvedValue({
       cookieName: 'wos-cookie',
@@ -142,6 +146,8 @@ describe('session', () => {
           createdAt: '2021-01-01T00:00:00Z',
           updatedAt: '2021-01-01T00:00:00Z',
           lastSignInAt: '2021-01-01T00:00:00Z',
+          locale: null,
+          metadata: {},
         },
         impersonator: undefined,
         headers: {},
@@ -170,8 +176,8 @@ describe('session', () => {
 
     it('should redirect to root when session token has no sessionId', async () => {
       const mockSession = createMockSession({
-        has: jest.fn().mockReturnValue(true),
-        get: jest.fn().mockReturnValue('encrypted-jwt'),
+        has: vi.fn().mockReturnValue(true),
+        get: vi.fn().mockReturnValue('encrypted-jwt'),
       });
 
       getSession.mockResolvedValueOnce(mockSession);
@@ -186,7 +192,7 @@ describe('session', () => {
       unsealData.mockResolvedValueOnce(mockSessionData);
 
       // Mock decodeJwt to return no sessionId
-      (jose.decodeJwt as jest.Mock).mockReturnValueOnce({});
+      (jose.decodeJwt as ReturnType<typeof vi.fn>).mockReturnValueOnce({});
 
       const response = await terminateSession(createMockRequest());
 
@@ -200,8 +206,8 @@ describe('session', () => {
 
     it('Should redirect to the provided returnTo if no session exists', async () => {
       const mockSession = createMockSession({
-        has: jest.fn().mockReturnValue(true),
-        get: jest.fn().mockReturnValue('encrypted-jwt'),
+        has: vi.fn().mockReturnValue(true),
+        get: vi.fn().mockReturnValue('encrypted-jwt'),
       });
 
       getSession.mockResolvedValueOnce(mockSession);
@@ -216,7 +222,7 @@ describe('session', () => {
       unsealData.mockResolvedValueOnce(mockSessionData);
 
       // Mock decodeJwt to return no sessionId
-      (jose.decodeJwt as jest.Mock).mockReturnValueOnce({});
+      (jose.decodeJwt as ReturnType<typeof vi.fn>).mockReturnValueOnce({});
 
       const response = await terminateSession(createMockRequest(), { returnTo: '/login' });
 
@@ -231,8 +237,8 @@ describe('session', () => {
     it('should redirect to WorkOS logout URL when valid session exists', async () => {
       // Setup a session with jwt
       const mockSession = createMockSession({
-        has: jest.fn().mockReturnValue(true),
-        get: jest.fn().mockReturnValue('encrypted-jwt'),
+        has: vi.fn().mockReturnValue(true),
+        get: vi.fn().mockReturnValue('encrypted-jwt'),
       });
 
       getSession.mockResolvedValueOnce(mockSession);
@@ -273,8 +279,8 @@ describe('session', () => {
       beforeEach(() => {
         // Setup session without JWT
         const mockSession = createMockSession({
-          has: jest.fn().mockReturnValue(false),
-          get: jest.fn(),
+          has: vi.fn().mockReturnValue(false),
+          get: vi.fn(),
         });
         getSession.mockResolvedValue(mockSession);
         unsealData.mockResolvedValue(null);
@@ -297,7 +303,7 @@ describe('session', () => {
       it('should redirect to login when ensureSignedIn is true', async () => {
         try {
           await authkitLoader(createLoaderArgs(createMockRequest()), { ensureSignedIn: true });
-          fail('Expected redirect response to be thrown');
+          throw new Error('Expected redirect response to be thrown');
         } catch (response: unknown) {
           assertIsResponse(response);
           expect(response.status).toBe(302);
@@ -310,7 +316,7 @@ describe('session', () => {
         const redirectResponse = redirect('/dashboard', {
           headers: { 'X-Redirect-Reason': 'test' },
         });
-        const customLoader = jest.fn().mockReturnValue(redirectResponse);
+        const customLoader = vi.fn().mockReturnValue(redirectResponse);
 
         try {
           await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
@@ -336,9 +342,9 @@ describe('session', () => {
 
       beforeEach(() => {
         const mockSession = createMockSession({
-          has: jest.fn().mockReturnValue(true),
-          get: jest.fn().mockReturnValue('encrypted-jwt'),
-          set: jest.fn(),
+          has: vi.fn().mockReturnValue(true),
+          get: vi.fn().mockReturnValue('encrypted-jwt'),
+          set: vi.fn(),
         });
         getSession.mockResolvedValue(mockSession);
         unsealData.mockResolvedValue({
@@ -351,8 +357,8 @@ describe('session', () => {
           payload: {},
           protectedHeader: {},
           key: new TextEncoder().encode('test-key'),
-        } as jose.JWTVerifyResult & jose.ResolvedKey<jose.KeyLike>);
-        (jose.decodeJwt as jest.Mock).mockReturnValue({
+        } as jose.JWTVerifyResult & jose.ResolvedKey);
+        (jose.decodeJwt as ReturnType<typeof vi.fn>).mockReturnValue({
           sid: 'test-session-id',
           org_id: 'org-123',
           role: 'admin',
@@ -364,7 +370,7 @@ describe('session', () => {
       it('should pass through non-JSON responses with just the cookie added', async () => {
         // Set up a custom loader that returns HTML
         const htmlContent = '<html><body><h1>Hello World!</h1></body></html>';
-        const customLoader = jest.fn().mockReturnValue(
+        const customLoader = vi.fn().mockReturnValue(
           new Response(htmlContent, {
             headers: {
               'Content-Type': 'text/html',
@@ -391,7 +397,7 @@ describe('session', () => {
         expect(result.headers.get('Set-Cookie')).toBe('session-cookie');
 
         // Verify that the JSON parsing method was not called
-        const jsonSpy = jest.spyOn(Response.prototype, 'json');
+        const jsonSpy = vi.spyOn(Response.prototype, 'json');
         expect(jsonSpy).not.toHaveBeenCalled();
         jsonSpy.mockRestore();
       });
@@ -411,7 +417,7 @@ describe('session', () => {
       });
 
       it('should handle custom loader data', async () => {
-        const customLoader = jest.fn().mockReturnValue({
+        const customLoader = vi.fn().mockReturnValue({
           customData: 'test-value',
           metadata: { key: 'value' },
         });
@@ -430,7 +436,7 @@ describe('session', () => {
 
       it('should merge plain objects with auth data', async () => {
         // Create a custom object with a property that would be overwritten by auth
-        const customLoader = jest.fn().mockReturnValue({
+        const customLoader = vi.fn().mockReturnValue({
           customData: 'test-value',
           // This would be overwritten if using spread operator incorrectly
           user: {
@@ -447,7 +453,7 @@ describe('session', () => {
       });
 
       it('should set session headers for plain object responses', async () => {
-        const customLoader = jest.fn().mockReturnValue({
+        const customLoader = vi.fn().mockReturnValue({
           customData: 'test-value',
         });
 
@@ -462,7 +468,7 @@ describe('session', () => {
       });
 
       it('should handle custom loader response with headers', async () => {
-        const customLoader = jest.fn().mockReturnValue(
+        const customLoader = vi.fn().mockReturnValue(
           new Response(JSON.stringify({ customData: 'test-value' }), {
             headers: {
               'Custom-Header': 'test-header',
@@ -488,7 +494,7 @@ describe('session', () => {
         // Test invalid JSON handling without accessing the body
         // Create a spied version of the native response.json method that will throw
         const jsonError = new Error('Invalid JSON');
-        const jsonSpy = jest.spyOn(Response.prototype, 'json').mockRejectedValue(jsonError);
+        const jsonSpy = vi.spyOn(Response.prototype, 'json').mockRejectedValue(jsonError);
 
         // Create a response with the right content type but that will throw on json()
         const mockResponse = new Response('', {
@@ -498,7 +504,7 @@ describe('session', () => {
           },
         });
 
-        const customLoader = jest.fn().mockReturnValue(mockResponse);
+        const customLoader = vi.fn().mockReturnValue(mockResponse);
 
         // Get the result
         const result = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
@@ -528,7 +534,7 @@ describe('session', () => {
           },
         };
 
-        const customLoader = jest.fn().mockReturnValue(dataResponse);
+        const customLoader = vi.fn().mockReturnValue(dataResponse);
 
         const { data, init } = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
 
@@ -561,7 +567,7 @@ describe('session', () => {
           },
         };
 
-        const customLoader = jest.fn().mockReturnValue(dataResponse);
+        const customLoader = vi.fn().mockReturnValue(dataResponse);
 
         const { data, init } = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
 
@@ -592,7 +598,7 @@ describe('session', () => {
           },
         };
 
-        const customLoader = jest.fn().mockReturnValue(dataResponse);
+        const customLoader = vi.fn().mockReturnValue(dataResponse);
 
         const { data, init } = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
 
@@ -628,7 +634,7 @@ describe('session', () => {
           },
         };
 
-        const customLoader = jest.fn().mockReturnValue(dataResponse);
+        const customLoader = vi.fn().mockReturnValue(dataResponse);
 
         const { data, init } = await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
 
@@ -653,13 +659,13 @@ describe('session', () => {
         const redirectResponse = redirect('/dashboard', {
           headers: { 'X-Redirect-Reason': 'test' },
         });
-        const customLoader = jest.fn().mockImplementation(() => {
+        const customLoader = vi.fn().mockImplementation(() => {
           throw redirectResponse;
         });
 
         try {
           await authkitLoader(createLoaderArgs(createMockRequest()), customLoader);
-          fail('Expected redirect response to be thrown');
+          throw new Error('Expected redirect response to be thrown');
         } catch (response: unknown) {
           assertIsResponse(response);
           expect(response.status).toBe(302);
@@ -669,7 +675,7 @@ describe('session', () => {
       });
 
       it('should provide getAccessToken function to custom loader', async () => {
-        const customLoader = jest.fn().mockImplementation(({ getAccessToken }) => {
+        const customLoader = vi.fn().mockImplementation(({ getAccessToken }) => {
           const token = getAccessToken();
           return { retrievedToken: token };
         });
@@ -699,7 +705,7 @@ describe('session', () => {
         // Mock no session
         unsealData.mockResolvedValue(null);
 
-        const customLoader = jest.fn().mockImplementation(({ getAccessToken }) => {
+        const customLoader = vi.fn().mockImplementation(({ getAccessToken }) => {
           const token = getAccessToken();
           return { retrievedToken: token };
         });
@@ -720,9 +726,9 @@ describe('session', () => {
       beforeEach(() => {
         // Setup session with expired token
         const mockSession = createMockSession({
-          has: jest.fn().mockReturnValue(true),
-          get: jest.fn().mockReturnValue('encrypted-jwt'),
-          set: jest.fn(),
+          has: vi.fn().mockReturnValue(true),
+          get: vi.fn().mockReturnValue('encrypted-jwt'),
+          set: vi.fn(),
         });
         getSession.mockResolvedValue(mockSession);
 
@@ -755,12 +761,14 @@ describe('session', () => {
             createdAt: '2021-01-01T00:00:00Z',
             updatedAt: '2021-01-01T00:00:00Z',
             externalId: null,
+            locale: null,
+            metadata: {},
           },
           impersonator: undefined,
         } as AuthenticationResponse);
 
         // Mock different JWT decoding results for expired vs new token
-        (jose.decodeJwt as jest.Mock).mockImplementation((token: string) => {
+        (jose.decodeJwt as ReturnType<typeof vi.fn>).mockImplementation((token: string) => {
           if (token === 'expired.token') {
             return {
               sid: 'test-session-id',
@@ -809,7 +817,7 @@ describe('session', () => {
       });
 
       it('calls onSessionRefreshSuccess when provided', async () => {
-        const onSessionRefreshSuccess = jest.fn();
+        const onSessionRefreshSuccess = vi.fn();
         await authkitLoader(createLoaderArgs(createMockRequest()), {
           onSessionRefreshSuccess,
         });
@@ -826,7 +834,7 @@ describe('session', () => {
         try {
           const mockRequest = createMockRequest('test-cookie', 'https://app.example.com/dashboard/settings');
           await authkitLoader(createLoaderArgs(mockRequest));
-          fail('Expected redirect response to be thrown');
+          throw new Error('Expected redirect response to be thrown');
         } catch (response: unknown) {
           assertIsResponse(response);
           expect(response.status).toBe(302);
@@ -842,7 +850,7 @@ describe('session', () => {
 
       it('calls onSessionRefreshError when provided and refresh fails', async () => {
         authenticateWithRefreshToken.mockRejectedValue(new Error('Refresh token invalid'));
-        const onSessionRefreshError = jest.fn().mockReturnValue(redirect('/error'));
+        const onSessionRefreshError = vi.fn().mockReturnValue(redirect('/error'));
 
         await authkitLoader(createLoaderArgs(createMockRequest()), {
           onSessionRefreshError,
@@ -860,7 +868,7 @@ describe('session', () => {
               throw redirect('/');
             },
           });
-          fail('Expected redirect response to be thrown');
+          throw new Error('Expected redirect response to be thrown');
         } catch (response: unknown) {
           assertIsResponse(response);
           expect(response.status).toBe(302);
@@ -878,20 +886,23 @@ describe('session', () => {
         }),
       });
 
-    let getSession: jest.Mock;
-    let destroySession: jest.Mock;
-    let commitSession: jest.Mock;
+    // biome-ignore lint/suspicious/noExplicitAny: Expected
+    let getSession: any;
+    // biome-ignore lint/suspicious/noExplicitAny: Expected
+    let destroySession: any;
+    // biome-ignore lint/suspicious/noExplicitAny: Expected
+    let commitSession: any;
     let mockSession: ReactRouterSession;
 
     beforeEach(() => {
-      getSession = jest.fn();
-      destroySession = jest.fn().mockResolvedValue('destroyed-session-cookie');
-      commitSession = jest.fn().mockResolvedValue('new-session-cookie');
+      getSession = vi.fn();
+      destroySession = vi.fn().mockResolvedValue('destroyed-session-cookie');
+      commitSession = vi.fn().mockResolvedValue('new-session-cookie');
 
       mockSession = createMockSession({
-        has: jest.fn().mockReturnValue(true),
-        get: jest.fn().mockReturnValue('encrypted-jwt'),
-        set: jest.fn(),
+        has: vi.fn().mockReturnValue(true),
+        get: vi.fn().mockReturnValue('encrypted-jwt'),
+        set: vi.fn(),
       });
 
       getSessionStorage.mockResolvedValue({
@@ -933,12 +944,14 @@ describe('session', () => {
           createdAt: '2021-01-01T00:00:00Z',
           updatedAt: '2021-01-01T00:00:00Z',
           externalId: null,
+          locale: null,
+          metadata: {},
         },
         impersonator: undefined,
       } as AuthenticationResponse);
 
       // Mock JWT decoding
-      (jose.decodeJwt as jest.Mock).mockReturnValue({
+      (jose.decodeJwt as ReturnType<typeof vi.fn>).mockReturnValue({
         sid: 'new-session-id',
         org_id: 'org-123',
         role: 'user',
@@ -992,7 +1005,7 @@ describe('session', () => {
 
       try {
         await refreshSession(createMockRequest());
-        fail('Expected redirect response to be thrown');
+        throw new Error('Expected redirect response to be thrown');
       } catch (response: unknown) {
         assertIsResponse(response);
         expect(response.status).toBe(302);

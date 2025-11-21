@@ -1,4 +1,7 @@
-import { data, redirect, type LoaderFunctionArgs, type SessionData } from '@remix-run/node';
+import { data, type LoaderFunctionArgs, redirect, type SessionData } from '@remix-run/node';
+import { sealData, unsealData } from 'iron-session';
+import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
+import { getConfig } from './config.js';
 import { getAuthorizationUrl } from './get-authorization-url.js';
 import type {
   AccessToken,
@@ -8,13 +11,9 @@ import type {
   Session,
   UnauthorizedData,
 } from './interfaces.js';
-import { getWorkOS } from './workos.js';
-
-import { sealData, unsealData } from 'iron-session';
-import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
-import { getConfig } from './config.js';
 import { configureSessionStorage, getSessionStorage } from './sessionStorage.js';
-import { isResponse, isRedirect, isJsonResponse, isDataWithResponseInit } from './utils.js';
+import { isDataWithResponseInit, isJsonResponse, isRedirect, isResponse } from './utils.js';
+import { getWorkOS } from './workos.js';
 
 // must be a type since this is a subtype of response
 // interfaces must conform to the types they extend
@@ -415,7 +414,7 @@ async function handleAuthLoader(
 
   // If there's a custom loader, get the resulting data and return it with our
   // auth data plus session cookie header
-  let loaderResult;
+  let loaderResult: LoaderValue<unknown>;
 
   if (auth.user) {
     // Authorized case
@@ -453,7 +452,9 @@ async function handleAuthLoader(
         // Handle plain object headers
         Object.entries(origHeaders).forEach(([key, value]) => {
           if (Array.isArray(value)) {
-            value.forEach((v) => mergedHeaders.append(key, v));
+            value.forEach((v) => {
+              mergedHeaders.append(key, v);
+            });
           } else if (value) {
             mergedHeaders.append(key, value);
           }
@@ -505,7 +506,7 @@ async function handleAuthLoader(
         status: newResponse.status,
         statusText: newResponse.statusText,
       });
-    } catch (error) {
+    } catch {
       // If parsing JSON fails, return the original response
       return newResponse;
     }
@@ -582,7 +583,7 @@ async function verifyAccessToken(accessToken: string) {
   try {
     await jwtVerify(accessToken, JWKS);
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
@@ -591,5 +592,5 @@ function getReturnPathname(url: string): string {
   const newUrl = new URL(url);
 
   // istanbul ignore next
-  return `${newUrl.pathname}${newUrl.searchParams.size > 0 ? '?' + newUrl.searchParams.toString() : ''}`;
+  return `${newUrl.pathname}${newUrl.searchParams.size > 0 ? `?${newUrl.searchParams.toString()}` : ''}`;
 }

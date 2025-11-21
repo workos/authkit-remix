@@ -1,13 +1,14 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { configure as ConfigureType, getConfig as GetConfigType } from './config.js';
-import { AuthKitConfig } from './interfaces.js';
+import type { AuthKitConfig } from './interfaces.js';
 
 describe('config', () => {
   let configure: typeof ConfigureType;
   let getConfig: typeof GetConfigType;
 
-  beforeEach(() => {
-    jest.resetModules();
-    ({ configure, getConfig } = require('./config.js'));
+  beforeEach(async () => {
+    vi.resetModules();
+    ({ configure, getConfig } = await import('./config.js'));
   });
 
   it('reads values from process.env with no configure call', () => {
@@ -73,6 +74,7 @@ describe('config', () => {
         if (key === 'WORKOS_API_KEY') {
           return 'overridden api key';
         }
+        return;
       },
     );
 

@@ -1,10 +1,10 @@
-/* istanbul ignore file */
+import { expect } from 'vitest';
 
 type SearchParamsModifier = Record<string, string> | ((params: URLSearchParams) => void);
 
 /**
  * Asserts that the given value is a Response object.
- * This is useful for type guards and uses Jest's expect to throw an error if the value is not a Response.
+ * This is useful for type guards and uses Vitest's expect to throw an error if the value is not a Response.
  * @param response - The value to assert is a Response object.
  */
 export function assertIsResponse(response: unknown): asserts response is Response {
@@ -54,6 +54,8 @@ export function createAuthWithCodeResponse(overrides: Record<string, unknown> = 
       updatedAt: '2024-01-01T00:00:00Z',
       lastSignInAt: '2024-01-01T00:00:00Z',
       externalId: null,
+      locale: null,
+      metadata: {},
     },
     ...overrides,
   };
