@@ -2,13 +2,13 @@ name: Coana Vulnerability Analysis
 
 on:
   schedule:
-    - cron: '0 3 * * *' # every day at 3 AM
+    - cron: "0 3 * * *" # every day at 3 AM
   workflow_dispatch:
     inputs:
       tags:
-        description: 'Manually run vulnerability analysis'
-      # Required by the return-dispatch action
+        description: "Manually run vulnerability analysis"
       distinct_id:
+        description: Required by the return-dispatch action
 
 jobs:
   coana-vulnerability-analysis:
@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Run Coana CLI
         id: coana-cli

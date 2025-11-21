@@ -1,4 +1,5 @@
 import type { WorkOS as WorkOSType } from '@workos-inc/node';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthKitConfig } from './interfaces.js';
 
 describe('workos', () => {
@@ -25,14 +26,14 @@ describe('workos', () => {
   let WorkOS: typeof WorkOSType;
   let configure: (config: Partial<AuthKitConfig>) => void;
 
-  beforeEach(() => {
-    jest.resetModules();
-    ({ configure } = require('./config.js'));
+  beforeEach(async () => {
+    vi.resetModules();
+    ({ configure } = await import('./config.js'));
   });
 
   it('should initialize WorkOS with correct API key', async () => {
     configure({ ...config });
-    jest.mock('@workos-inc/node', () => ({ WorkOS: jest.fn() }));
+    vi.mock('@workos-inc/node', () => ({ WorkOS: vi.fn() }));
     ({ getWorkOS } = await import('./workos.js'));
     ({ WorkOS } = await import('@workos-inc/node'));
     const workos = getWorkOS();
@@ -43,7 +44,7 @@ describe('workos', () => {
 
   it('sets https when WORKOS_API_HTTPS is set', async () => {
     configure({ ...config, apiHttps: false });
-    jest.mock('@workos-inc/node', () => ({ WorkOS: jest.fn() }));
+    vi.mock('@workos-inc/node', () => ({ WorkOS: vi.fn() }));
     ({ getWorkOS } = await import('./workos.js'));
     ({ WorkOS } = await import('@workos-inc/node'));
     const workos = getWorkOS();
@@ -54,7 +55,7 @@ describe('workos', () => {
 
   it('does not set the port when not provided', async () => {
     configure({ ...config, apiPort: 3000 });
-    jest.mock('@workos-inc/node', () => ({ WorkOS: jest.fn() }));
+    vi.mock('@workos-inc/node', () => ({ WorkOS: vi.fn() }));
     ({ getWorkOS } = await import('./workos.js'));
     ({ WorkOS } = await import('@workos-inc/node'));
     const workos = getWorkOS();

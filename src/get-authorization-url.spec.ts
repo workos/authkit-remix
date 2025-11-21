@@ -1,5 +1,6 @@
-import { getAuthorizationUrl } from './get-authorization-url.js';
+import { describe, expect, it } from 'vitest';
 import { getConfig } from './config.js';
+import { getAuthorizationUrl } from './get-authorization-url.js';
 
 describe('getAuthorizationUrl', () => {
   it('should generate a valid WorkOS authorization URL', async () => {
