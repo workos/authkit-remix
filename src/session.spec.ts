@@ -457,6 +457,7 @@ describe('session', () => {
           permissions: ['read', 'write'],
           entitlements: ['premium'],
           role: 'admin',
+          roles: null,
           sessionId: 'test-session-id',
         });
       });

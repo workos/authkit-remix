@@ -106,7 +106,7 @@ export interface AuthorizedData {
   sessionId: string;
   organizationId: string | null;
   role: string | null;
-  roles: string[];
+  roles: string[] | null;
   permissions: string[];
   entitlements: string[];
   impersonator: Impersonator | null;
