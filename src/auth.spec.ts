@@ -108,6 +108,7 @@ describe('auth', () => {
       accessToken: 'new-access-token',
       organizationId: 'org_123456' as string | undefined,
       role: 'admin' as string | undefined,
+      roles: ['admin', 'member'] as string[] | undefined,
       permissions: ['read', 'write'] as string[] | undefined,
       entitlements: ['premium'] as string[] | undefined,
       impersonator: null,
@@ -338,6 +339,7 @@ describe('auth', () => {
         sessionId: 'session-123',
         organizationId: 'org-456',
         role: 'admin',
+        roles: ['admin', 'member'],
         permissions: ['read', 'write'],
         entitlements: ['feature-1', 'feature-2'],
         exp: Date.now() / 1000 + 3600, // 1 hour from now
@@ -359,6 +361,7 @@ describe('auth', () => {
         sessionId: mockClaims.sessionId,
         organizationId: mockClaims.organizationId,
         role: mockClaims.role,
+        roles: mockClaims.roles,
         permissions: mockClaims.permissions,
         entitlements: mockClaims.entitlements,
         impersonator: mockSession.impersonator,
@@ -392,6 +395,7 @@ describe('auth', () => {
         sessionId: 'session-123',
         organizationId: 'org-456',
         role: 'admin',
+        roles: ['admin', 'member'],
         permissions: ['read', 'write'],
         entitlements: ['feature-1', 'feature-2'],
         exp: Date.now() / 1000 - 3600, // 1 hour ago (expired)
@@ -417,6 +421,110 @@ describe('auth', () => {
       });
 
       consoleWarnSpy.mockRestore();
+    });
+
+    it('should handle multiple roles array properly', async () => {
+      // Mock session with valid access token
+      const mockSession = {
+        accessToken: 'valid-access-token',
+        refreshToken: 'refresh-token',
+        user: {
+          id: 'user-1',
+          email: 'test@example.com',
+          firstName: 'Test',
+          lastName: 'User',
+          emailVerified: true,
+          profilePictureUrl: 'https://example.com/profile.jpg',
+          object: 'user' as const,
+          createdAt: '2023-01-01T00:00:00Z',
+          updatedAt: '2023-01-01T00:00:00Z',
+          lastSignInAt: '2023-01-01T00:00:00Z',
+          externalId: null,
+        },
+        impersonator: undefined,
+        headers: {},
+      };
+
+      // Mock claims with multiple roles
+      const mockClaims = {
+        sessionId: 'session-123',
+        organizationId: 'org-456',
+        role: 'user',
+        roles: ['user', 'editor', 'viewer'],
+        permissions: ['read'],
+        entitlements: ['basic'],
+        exp: Date.now() / 1000 + 3600,
+        iss: 'https://api.workos.com',
+      };
+
+      getSessionFromCookie.mockResolvedValue(mockSession);
+      getClaimsFromAccessToken.mockReturnValue(mockClaims);
+
+      const result = await withAuth(createMockRequest('wos-session=valid-session-data'));
+
+      expect(result).toEqual({
+        user: mockSession.user,
+        sessionId: mockClaims.sessionId,
+        organizationId: mockClaims.organizationId,
+        role: mockClaims.role,
+        roles: mockClaims.roles,
+        permissions: mockClaims.permissions,
+        entitlements: mockClaims.entitlements,
+        impersonator: mockSession.impersonator,
+        accessToken: mockSession.accessToken,
+      });
+    });
+
+    it('should handle missing roles field gracefully', async () => {
+      // Mock session with valid access token
+      const mockSession = {
+        accessToken: 'valid-access-token',
+        refreshToken: 'refresh-token',
+        user: {
+          id: 'user-1',
+          email: 'test@example.com',
+          firstName: 'Test',
+          lastName: 'User',
+          emailVerified: true,
+          profilePictureUrl: 'https://example.com/profile.jpg',
+          object: 'user' as const,
+          createdAt: '2023-01-01T00:00:00Z',
+          updatedAt: '2023-01-01T00:00:00Z',
+          lastSignInAt: '2023-01-01T00:00:00Z',
+          externalId: null,
+        },
+        impersonator: undefined,
+        headers: {},
+      };
+
+      // Mock claims without roles field (for backward compatibility)
+      const mockClaims = {
+        sessionId: 'session-123',
+        organizationId: 'org-456',
+        role: 'user',
+        roles: undefined,
+        permissions: ['read'],
+        entitlements: ['basic'],
+        exp: Date.now() / 1000 + 3600,
+        iss: 'https://api.workos.com',
+      };
+
+      getSessionFromCookie.mockResolvedValue(mockSession);
+      getClaimsFromAccessToken.mockReturnValue(mockClaims);
+
+      const result = await withAuth(createMockRequest('wos-session=valid-session-data'));
+
+      expect(result).toEqual({
+        user: mockSession.user,
+        sessionId: mockClaims.sessionId,
+        organizationId: mockClaims.organizationId,
+        role: mockClaims.role,
+        roles: undefined,
+        permissions: mockClaims.permissions,
+        entitlements: mockClaims.entitlements,
+        impersonator: mockSession.impersonator,
+        accessToken: mockSession.accessToken,
+      });
     });
 
     it('should return NoUserInfo when no session exists', async () => {

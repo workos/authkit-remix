@@ -72,6 +72,7 @@ export async function refreshSession(request: Request, { organizationId }: { org
       sessionId,
       organizationId: newOrgId,
       role,
+      roles,
       permissions,
       entitlements,
     } = getClaimsFromAccessToken(accessToken);
@@ -82,6 +83,7 @@ export async function refreshSession(request: Request, { organizationId }: { org
       accessToken,
       organizationId: newOrgId,
       role,
+      roles,
       permissions,
       entitlements,
       impersonator: impersonator ?? null,
@@ -329,6 +331,7 @@ export async function authkitLoader<Data = unknown>(
         permissions: null,
         entitlements: null,
         role: null,
+        roles: null,
         sessionId: null,
       };
 
@@ -340,6 +343,7 @@ export async function authkitLoader<Data = unknown>(
       sessionId,
       organizationId = null,
       role = null,
+      roles = null,
       permissions = [],
       entitlements = [],
     } = getClaimsFromAccessToken(session.accessToken);
@@ -361,6 +365,7 @@ export async function authkitLoader<Data = unknown>(
       sessionId,
       organizationId,
       role,
+      roles,
       permissions,
       entitlements,
       impersonator,
@@ -545,6 +550,7 @@ export function getClaimsFromAccessToken(accessToken: string) {
     sid: sessionId,
     org_id: organizationId,
     role,
+    roles,
     permissions,
     entitlements,
     exp,
@@ -557,6 +563,7 @@ export function getClaimsFromAccessToken(accessToken: string) {
     sessionId,
     organizationId,
     role,
+    roles,
     permissions,
     entitlements,
   };
