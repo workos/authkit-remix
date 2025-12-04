@@ -50,6 +50,7 @@ export async function withAuth(args: LoaderFunctionArgs): Promise<UserInfo | NoU
     permissions,
     entitlements,
     role,
+    roles,
     exp = 0,
   } = getClaimsFromAccessToken(session.accessToken);
 
@@ -69,6 +70,7 @@ export async function withAuth(args: LoaderFunctionArgs): Promise<UserInfo | NoU
     sessionId,
     organizationId,
     role,
+    roles,
     permissions,
     entitlements,
     impersonator: session.impersonator,

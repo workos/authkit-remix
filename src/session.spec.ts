@@ -290,6 +290,7 @@ describe('session', () => {
           permissions: null,
           entitlements: null,
           role: null,
+          roles: null,
           sessionId: null,
         });
       });
@@ -356,6 +357,7 @@ describe('session', () => {
           sid: 'test-session-id',
           org_id: 'org-123',
           role: 'admin',
+          roles: ['admin', 'member'],
           permissions: ['read', 'write'],
           entitlements: ['premium'],
         });
@@ -406,6 +408,56 @@ describe('session', () => {
           permissions: ['read', 'write'],
           entitlements: ['premium'],
           role: 'admin',
+          roles: ['admin', 'member'],
+          sessionId: 'test-session-id',
+        });
+      });
+
+      it('should handle roles array with multiple roles', async () => {
+        // Override the JWT decoding to return multiple roles
+        (jose.decodeJwt as jest.Mock).mockReturnValueOnce({
+          sid: 'test-session-id',
+          org_id: 'org-123',
+          role: 'admin',
+          roles: ['admin', 'member', 'viewer'],
+          permissions: ['read', 'write'],
+          entitlements: ['premium'],
+        });
+
+        const { data } = await authkitLoader(createLoaderArgs(createMockRequest()));
+
+        expect(data).toEqual({
+          user: mockSessionData.user,
+          impersonator: null,
+          organizationId: 'org-123',
+          permissions: ['read', 'write'],
+          entitlements: ['premium'],
+          role: 'admin',
+          roles: ['admin', 'member', 'viewer'],
+          sessionId: 'test-session-id',
+        });
+      });
+
+      it('should handle missing roles field gracefully', async () => {
+        // Override the JWT decoding to not include roles at all
+        (jose.decodeJwt as jest.Mock).mockReturnValueOnce({
+          sid: 'test-session-id',
+          org_id: 'org-123',
+          role: 'admin',
+          permissions: ['read', 'write'],
+          entitlements: ['premium'],
+        });
+
+        const { data } = await authkitLoader(createLoaderArgs(createMockRequest()));
+
+        expect(data).toEqual({
+          user: mockSessionData.user,
+          impersonator: null,
+          organizationId: 'org-123',
+          permissions: ['read', 'write'],
+          entitlements: ['premium'],
+          role: 'admin',
+          roles: null,
           sessionId: 'test-session-id',
         });
       });
@@ -775,6 +827,7 @@ describe('session', () => {
               sid: 'new-session-id',
               org_id: 'org-123',
               role: 'user',
+              roles: ['user', 'viewer'],
               permissions: ['read'],
               entitlements: ['basic'],
             };
@@ -799,6 +852,7 @@ describe('session', () => {
             sessionId: 'new-session-id',
             organizationId: 'org-123',
             role: 'user',
+            roles: ['user', 'viewer'],
             permissions: ['read'],
             entitlements: ['basic'],
           }),
@@ -942,6 +996,7 @@ describe('session', () => {
         sid: 'new-session-id',
         org_id: 'org-123',
         role: 'user',
+        roles: ['user', 'viewer'],
         permissions: ['read'],
         entitlements: ['basic'],
       });
@@ -966,6 +1021,7 @@ describe('session', () => {
         accessToken: 'new.valid.token',
         organizationId: 'org-123',
         role: 'user',
+        roles: ['user', 'viewer'],
         permissions: ['read'],
         entitlements: ['basic'],
         impersonator: null,
