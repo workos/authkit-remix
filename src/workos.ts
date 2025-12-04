@@ -2,7 +2,7 @@ import { WorkOS } from '@workos-inc/node';
 import { getConfig } from './config.js';
 import { lazy } from './utils.js';
 
-const VERSION = '0.16.2';
+const VERSION = '0.17.0';
 
 /**
  * Create a WorkOS instance with the provided API key and optional settings.
