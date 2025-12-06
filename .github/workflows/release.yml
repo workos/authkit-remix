@@ -7,24 +7,20 @@ on:
   release:
     types: [published]
 
-defaults:
-  run:
-    shell: bash
-
 jobs:
   test:
     name: Publish to NPM
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: 18
-          registry-url: 'https://registry.npmjs.org'
+          node-version: 24
+          registry-url: "https://registry.npmjs.org"
 
       - name: Install Dependencies
         run: |
-          npm install
+          npm ci
 
       - name: Build project
         run: |

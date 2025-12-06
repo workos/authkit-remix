@@ -1,8 +1,8 @@
-import { LoaderFunctionArgs, data, redirect } from '@remix-run/node';
-import { getAuthorizationUrl } from './get-authorization-url.js';
-import { NoUserInfo, UserInfo } from './interfaces.js';
-import { getClaimsFromAccessToken, getSessionFromCookie, refreshSession, terminateSession } from './session.js';
+import { data, type LoaderFunctionArgs, redirect } from '@remix-run/node';
 import { getConfig } from './config.js';
+import { getAuthorizationUrl } from './get-authorization-url.js';
+import type { NoUserInfo, UserInfo } from './interfaces.js';
+import { getClaimsFromAccessToken, getSessionFromCookie, refreshSession, terminateSession } from './session.js';
 
 export async function getSignInUrl(returnPathname?: string) {
   return getAuthorizationUrl({ returnPathname, screenHint: 'sign-in' });
@@ -33,7 +33,7 @@ export async function withAuth(args: LoaderFunctionArgs): Promise<UserInfo | NoU
   // Simple check without environment detection
   if (!cookieHeader || !cookieHeader.includes(cookieName)) {
     console.warn(
-      `[AuthKit] No session cookie "${cookieName}" found. ` + `Make sure authkitLoader is used in a parent/root route.`,
+      `[AuthKit] No session cookie "${cookieName}" found. Make sure authkitLoader is used in a parent/root route.`,
     );
   }
   const session = await getSessionFromCookie(cookieHeader);
@@ -116,7 +116,7 @@ export async function switchToOrganization(
       throw error;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: Expected
     const errorCause: any = error instanceof Error ? error.cause : null;
     if (errorCause?.error === 'sso_required' || errorCause?.error === 'mfa_enrollment') {
       return redirect(await getAuthorizationUrl({ organizationId }));

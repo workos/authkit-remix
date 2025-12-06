@@ -1,41 +1,42 @@
-import { User } from '@workos-inc/node';
+import { data, type LoaderFunctionArgs, redirect } from '@remix-run/node';
+import type { User } from '@workos-inc/node';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getSignInUrl, getSignUpUrl, signOut, switchToOrganization, withAuth } from './auth.js';
+import * as configModule from './config.js';
 import * as authorizationUrl from './get-authorization-url.js';
 import * as session from './session.js';
-import * as configModule from './config.js';
-import { data, redirect, LoaderFunctionArgs } from '@remix-run/node';
 import { assertIsResponse } from './test-utils/test-helpers.js';
 
-const terminateSession = jest.mocked(session.terminateSession);
-const refreshSession = jest.mocked(session.refreshSession);
-const getSessionFromCookie = jest.mocked(session.getSessionFromCookie);
-const getClaimsFromAccessToken = jest.mocked(session.getClaimsFromAccessToken);
-const getConfig = jest.mocked(configModule.getConfig);
+const terminateSession = vi.mocked(session.terminateSession);
+const refreshSession = vi.mocked(session.refreshSession);
+const getSessionFromCookie = vi.mocked(session.getSessionFromCookie);
+const getClaimsFromAccessToken = vi.mocked(session.getClaimsFromAccessToken);
+const getConfig = vi.mocked(configModule.getConfig);
 
-jest.mock('./session', () => ({
-  terminateSession: jest.fn().mockResolvedValue(new Response()),
-  refreshSession: jest.fn(),
-  getSessionFromCookie: jest.fn(),
-  getClaimsFromAccessToken: jest.fn(),
+vi.mock('./session', () => ({
+  terminateSession: vi.fn().mockResolvedValue(new Response()),
+  refreshSession: vi.fn(),
+  getSessionFromCookie: vi.fn(),
+  getClaimsFromAccessToken: vi.fn(),
 }));
 
-jest.mock('./config', () => ({
-  getConfig: jest.fn(),
+vi.mock('./config', () => ({
+  getConfig: vi.fn(),
 }));
 
 // Mock redirect and data from react-router
-jest.mock('@remix-run/node', () => {
-  const originalModule = jest.requireActual('@remix-run/node');
+vi.mock('@remix-run/node', async () => {
+  const originalModule = await vi.importActual('@remix-run/node');
   return {
     ...originalModule,
-    redirect: jest.fn().mockImplementation((to, init) => {
+    redirect: vi.fn().mockImplementation((to, init) => {
       const response = new Response(null, {
         status: 302,
         headers: { Location: to, ...(init?.headers || {}) },
       });
       return response;
     }),
-    data: jest.fn().mockImplementation((value, init) => ({
+    data: vi.fn().mockImplementation((value, init) => ({
       data: value,
       init,
     })),
@@ -44,7 +45,7 @@ jest.mock('@remix-run/node', () => {
 
 describe('auth', () => {
   beforeEach(() => {
-    jest.spyOn(authorizationUrl, 'getAuthorizationUrl');
+    vi.spyOn(authorizationUrl, 'getAuthorizationUrl');
   });
 
   describe('getSignInUrl', () => {
@@ -174,7 +175,7 @@ describe('auth', () => {
 
       try {
         await switchToOrganization(request, organizationId);
-        fail('Expected redirect response to be thrown');
+        throw new Error('Expected redirect response to be thrown');
       } catch (response) {
         assertIsResponse(response);
         expect(response.status).toBe(302);
@@ -189,7 +190,7 @@ describe('auth', () => {
       });
 
       refreshSession.mockRejectedValueOnce(errorWithSSOCause);
-      (authorizationUrl.getAuthorizationUrl as jest.Mock).mockResolvedValueOnce(authUrl);
+      vi.mocked(authorizationUrl.getAuthorizationUrl).mockResolvedValueOnce(authUrl);
 
       const result = await switchToOrganization(request, organizationId);
 
@@ -208,7 +209,7 @@ describe('auth', () => {
       });
 
       refreshSession.mockRejectedValueOnce(errorWithMFACause);
-      (authorizationUrl.getAuthorizationUrl as jest.Mock).mockResolvedValueOnce(authUrl);
+      vi.mocked(authorizationUrl.getAuthorizationUrl).mockResolvedValueOnce(authUrl);
 
       const result = await switchToOrganization(request, organizationId);
 
@@ -305,7 +306,7 @@ describe('auth', () => {
     };
 
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       getConfig.mockReturnValue('wos-session');
     });
 
@@ -326,6 +327,8 @@ describe('auth', () => {
           updatedAt: '2023-01-01T00:00:00Z',
           lastSignInAt: '2023-01-01T00:00:00Z',
           externalId: null,
+          locale: null,
+          metadata: {},
         },
         impersonator: {
           email: 'admin@example.com',
@@ -386,6 +389,8 @@ describe('auth', () => {
           updatedAt: '2023-01-01T00:00:00Z',
           lastSignInAt: '2023-01-01T00:00:00Z',
           externalId: null,
+          locale: null,
+          metadata: {},
         },
         headers: {},
       };
@@ -406,7 +411,7 @@ describe('auth', () => {
       getClaimsFromAccessToken.mockReturnValue(mockClaims);
 
       // Spy on console.warn
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       const result = await withAuth(createMockRequest('wos-session=expired-session-data'));
 
@@ -556,6 +561,8 @@ describe('auth', () => {
           updatedAt: '2023-01-01T00:00:00Z',
           lastSignInAt: '2023-01-01T00:00:00Z',
           externalId: null,
+          locale: null,
+          metadata: {},
         },
         refreshToken: 'refresh-token',
         headers: {},
@@ -574,7 +581,7 @@ describe('auth', () => {
 
     it('should warn when no cookie header includes the cookie name', async () => {
       // Spy on console.warn
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       getSessionFromCookie.mockResolvedValue(null);
 
