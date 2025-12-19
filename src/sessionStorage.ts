@@ -18,6 +18,7 @@ export class SessionStorageManager {
    * The default cookie name used for storing the session id.
    */
 
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: False Positive
   private storage: SessionStorage | null = null;
   private configPromise: Promise<void> | null = null;
   private cookieName: string = getConfig('cookieName') || 'wos-session';

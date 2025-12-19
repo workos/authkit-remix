@@ -1,12 +1,13 @@
 import { createCookie, createMemorySessionStorage } from '@remix-run/node';
-import { SessionStorageManager, errors } from './sessionStorage.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { configure } from './config.js';
+import { errors, SessionStorageManager } from './sessionStorage.js';
 
 describe('SessionStorageManager', () => {
   let storage: SessionStorageManager;
 
   beforeEach(() => {
-    jest.resetModules();
+    vi.resetModules();
     configure({
       redirectUri: 'https://example.com',
       cookiePassword: 'a really long password that fits the minimum length requirements',
@@ -81,12 +82,11 @@ describe('SessionStorageManager', () => {
   });
 
   describe('storageManager', () => {
-    type CreateCookieSessionStorageType = (typeof import('@remix-run/node'))['createCookieSessionStorage'];
-    let createCookieSessionStorage: jest.MockedFunction<CreateCookieSessionStorageType>;
+    let createCookieSessionStorage: ReturnType<typeof vi.fn>;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: Expected
     async function mockWithConfig(variables?: Record<string, any>) {
-      jest.resetModules();
+      vi.resetModules();
 
       const { configure } = await import('./config.js');
 
@@ -97,17 +97,18 @@ describe('SessionStorageManager', () => {
       });
 
       // Mock first, before any imports
-      jest.doMock('@remix-run/node', () => ({
-        ...jest.requireActual('@remix-run/node'),
-        createCookieSessionStorage: jest.fn().mockReturnValue({
-          getSession: jest.fn(),
-          commitSession: jest.fn(),
-          destroySession: jest.fn(),
+      vi.doMock('@remix-run/node', async () => ({
+        ...(await vi.importActual('@remix-run/node')),
+        createCookieSessionStorage: vi.fn().mockReturnValue({
+          getSession: vi.fn(),
+          commitSession: vi.fn(),
+          destroySession: vi.fn(),
         }),
       }));
 
-      createCookieSessionStorage = (await import('@remix-run/node'))
-        .createCookieSessionStorage as jest.MockedFunction<CreateCookieSessionStorageType>;
+      createCookieSessionStorage = (await import('@remix-run/node')).createCookieSessionStorage as ReturnType<
+        typeof vi.fn
+      >;
 
       const { SessionStorageManager } = await import('./sessionStorage.js');
       storage = new SessionStorageManager();
@@ -151,11 +152,11 @@ describe('SessionStorageManager', () => {
   });
 
   describe('singleton', () => {
-    let configureSessionStorage: (typeof import('./sessionStorage.js'))['configureSessionStorage'];
-    let getSessionStorage: (typeof import('./sessionStorage.js'))['getSessionStorage'];
+    let configureSessionStorage: typeof import('./sessionStorage.js')['configureSessionStorage'];
+    let getSessionStorage: typeof import('./sessionStorage.js')['getSessionStorage'];
 
     beforeEach(async () => {
-      jest.resetModules();
+      vi.resetModules();
       ({ configureSessionStorage, getSessionStorage } = await import('./sessionStorage.js'));
     });
 

@@ -1,14 +1,8 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - 'main'
-  pull_request: {}
-
-defaults:
-  run:
-    shell: bash
+  - push
+  - pull_request
 
 jobs:
   test:
@@ -16,20 +10,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: [18, 20, 22]
+        node: [20, 22, 24]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
 
       - name: Install Dependencies
         run: |
-          npm install
-
-      - name: Prettier
-        run: |
-          npm run prettier
+          npm ci
 
       - name: Lint
         run: |

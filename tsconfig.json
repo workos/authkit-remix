@@ -1,20 +1,14 @@
 {
-  "$schema": "http://json.schemastore.org/tsconfig",
+  "extends": ["@tsconfig/strictest/tsconfig.json", "@tsconfig/node24/tsconfig.json"],
   "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["DOM", "ES2022", "DOM.Iterable"],
-    "jsx": "react",
-    "module": "Node16",
-    "moduleResolution": "Node",
-    "sourceMap": true,
     "declaration": true,
-    "outDir": "./dist",
-    "importHelpers": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "alwaysStrict": true,
-    "skipLibCheck": true
-  },
-  "exclude": ["**/*.spec.ts", "**/*.spec.tsx", "jest.config.ts", "jest.setup.ts", "/dist/**/*"]
+    "declarationMap": true,
+    "exactOptionalPropertyTypes": false,
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "module": "NodeNext",
+    "moduleDetection": "force",
+    "moduleResolution": "NodeNext",
+    "noEmit": true,
+    "noPropertyAccessFromIndexSignature": false
+  }
 }

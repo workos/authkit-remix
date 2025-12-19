@@ -1,35 +1,36 @@
-import { getWorkOS } from './workos.js';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { authLoader } from './authkit-callback-route.js';
-import {
-  createRequestWithSearchParams,
-  createAuthWithCodeResponse,
-  assertIsResponse,
-} from './test-utils/test-helpers.js';
+import type { DataWithResponseInit } from './interfaces.js';
 import { configureSessionStorage } from './sessionStorage.js';
+import {
+  assertIsResponse,
+  createAuthWithCodeResponse,
+  createRequestWithSearchParams,
+} from './test-utils/test-helpers.js';
 import { isDataWithResponseInit } from './utils.js';
-import { DataWithResponseInit } from './interfaces.js';
+import { getWorkOS } from './workos.js';
 
 // Mock dependencies
 const fakeWorkosInstance = {
   userManagement: {
-    authenticateWithCode: jest.fn(),
-    getJwksUrl: jest.fn(() => 'https://api.workos.com/sso/jwks/client_1234567890'),
+    authenticateWithCode: vi.fn(),
+    getJwksUrl: vi.fn(() => 'https://api.workos.com/sso/jwks/client_1234567890'),
   },
 };
 
-jest.mock('./workos.js', () => ({
-  getWorkOS: jest.fn(() => fakeWorkosInstance),
+vi.mock('./workos.js', () => ({
+  getWorkOS: vi.fn(() => fakeWorkosInstance),
 }));
 
 describe('authLoader', () => {
   let loader: ReturnType<typeof authLoader>;
   let request: Request;
   const workos = getWorkOS();
-  const authenticateWithCode = jest.mocked(workos.userManagement.authenticateWithCode);
+  const authenticateWithCode = vi.mocked(workos.userManagement.authenticateWithCode);
 
   beforeAll(() => {
     // Silence console.error during tests
-    jest.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     configureSessionStorage();
   });
 
@@ -119,7 +120,7 @@ describe('authLoader', () => {
   });
 
   it('handles calling onSuccess when provided', async () => {
-    const onSuccess = jest.fn();
+    const onSuccess = vi.fn();
     loader = authLoader({ onSuccess });
     await loader({
       request,
@@ -144,7 +145,7 @@ describe('authLoader', () => {
   });
 
   it('provides impersonator to onSuccess callback when provided', async () => {
-    const onSuccess = jest.fn();
+    const onSuccess = vi.fn();
     authenticateWithCode.mockResolvedValue(
       createAuthWithCodeResponse({
         impersonator: {
@@ -165,7 +166,7 @@ describe('authLoader', () => {
   });
 
   it('provides oauthTokens to onSuccess callback when provided', async () => {
-    const onSuccess = jest.fn();
+    const onSuccess = vi.fn();
     authenticateWithCode.mockResolvedValue(
       createAuthWithCodeResponse({
         oauthTokens: {
@@ -216,6 +217,7 @@ describe('authLoader', () => {
       // The redirect URL should be fixed to HTTPS (not HTTP)
       const location = response.headers.get('Location');
       expect(location).toBe('https://example.com/');
+      // biome-ignore lint/style/noNonNullAssertion: Expected
       expect(new URL(location!).protocol).toBe('https:');
     } finally {
       // Restore original env var
@@ -252,6 +254,7 @@ describe('authLoader', () => {
       // This documents current behavior - may need adjustment if port should come from config
       const location = response.headers.get('Location');
       expect(location).toBe('https://example.com:3000/');
+      // biome-ignore lint/style/noNonNullAssertion: Expected
       expect(new URL(location!).port).toBe('3000');
     } finally {
       // Restore original env var

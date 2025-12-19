@@ -1,6 +1,6 @@
-import { LoaderFunctionArgs, data, redirect } from '@remix-run/node';
+import { data, type LoaderFunctionArgs, redirect } from '@remix-run/node';
 import { getConfig } from './config.js';
-import { HandleAuthOptions } from './interfaces.js';
+import type { HandleAuthOptions } from './interfaces.js';
 import { encryptSession } from './session.js';
 import { configureSessionStorage } from './sessionStorage.js';
 import { getWorkOS } from './workos.js';
@@ -100,11 +100,13 @@ export function authLoader(options: HandleAuthOptions = {}) {
         {
           error: {
             message: 'Something went wrong',
-            description: 'Couldn’t sign in. If you are not sure what happened, please contact your organization admin.',
+            description: "Couldn't sign in. If you are not sure what happened, please contact your organization admin.",
           },
         },
         { status: 500 },
       );
     }
+
+    return undefined;
   };
 }

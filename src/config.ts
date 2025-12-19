@@ -1,7 +1,7 @@
 import type { AuthKitConfig } from './interfaces.js';
 import { lazy } from './utils.js';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: Expected
 type ValueSource = Record<string, any> | ((key: string) => any);
 
 /**
@@ -32,6 +32,7 @@ export class Configuration {
     apiHostname: 'api.workos.com',
   };
 
+  // biome-ignore lint/correctness/noUnusedPrivateClassMembers: False Positive
   private valueSource: ValueSource = defaultSource;
 
   private readonly requiredKeys: (keyof AuthKitConfig)[] = ['clientId', 'apiKey', 'redirectUri', 'cookiePassword'];
@@ -72,7 +73,7 @@ export class Configuration {
   getValue<K extends keyof AuthKitConfig>(key: K): AuthKitConfig[K] {
     // First check environment variables
     const envKey = this.getEnvironmentVariableName(key);
-    let envValue: AuthKitConfig[K] | undefined = undefined;
+    let envValue: AuthKitConfig[K] | undefined;
 
     const { valueSource, config } = this;
     if (typeof valueSource === 'function') {
@@ -90,14 +91,14 @@ export class Configuration {
 
       if ((key === 'apiPort' || key === 'cookieMaxAge') && typeof envValue === 'string') {
         const num = parseInt(envValue, 10);
-        return (isNaN(num) ? undefined : num) as AuthKitConfig[K];
+        return (Number.isNaN(num) ? undefined : num) as AuthKitConfig[K];
       }
 
       return envValue as AuthKitConfig[K];
     }
 
     // Then check programmatically provided config
-    if (key in config && config[key] != undefined) {
+    if (key in config && config[key] !== null && config[key] !== undefined) {
       return config[key] as AuthKitConfig[K];
     }
 
