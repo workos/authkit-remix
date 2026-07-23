@@ -899,6 +899,12 @@ describe('session', () => {
         ['a server error (503)', Object.assign(new Error('Service unavailable'), { status: 503 })],
         ['a request timeout (408)', Object.assign(new Error('Request timeout'), { status: 408 })],
         ['a network error', new TypeError('fetch failed')],
+        // The SDK re-wraps a raw network TypeError in a plain Error with the
+        // TypeError as its cause; the classifier must follow the cause chain.
+        [
+          'an SDK-wrapped network error',
+          new Error('Unexpected error: TypeError: fetch failed', { cause: new TypeError('fetch failed') }),
+        ],
       ])('should preserve the session cookie when refresh fails transiently: %s', async (_label, transientError) => {
         authenticateWithRefreshToken.mockRejectedValue(transientError);
         getAuthorizationUrlMock.mockResolvedValue('https://auth.workos.com/oauth/authorize?state=abc123');

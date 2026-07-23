@@ -30,6 +30,12 @@ export interface RefreshErrorOptions {
   error: unknown;
   request: Request;
   sessionData: SessionData;
+  /**
+   * Whether the refresh failed for a transient reason (network error, timeout,
+   * 429, or 5xx) rather than a terminal one. When `true` the existing session
+   * is preserved for a later retry instead of being destroyed.
+   */
+  isTransient: boolean;
 }
 
 export interface RefreshSuccessOptions {

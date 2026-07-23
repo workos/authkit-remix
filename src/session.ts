@@ -44,28 +44,47 @@ export class SessionRefreshError extends Error {
 // (429), and 5xx.
 const RETRYABLE_REFRESH_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 
+// A network-level fetch failure surfaces as a TypeError ("fetch failed" /
+// "Failed to fetch"). Match its message so an unrelated programming TypeError
+// isn't misclassified as a transient (and therefore session-preserving) error.
+const NETWORK_ERROR_MESSAGE = /fetch failed|failed to fetch|network|load failed|terminated/i;
+
+// A raw network TypeError is not an HttpClientError, so the WorkOS SDK re-wraps
+// it in a plain Error whose `cause` is the original TypeError. Follow the cause
+// chain to recognize it.
+function isNetworkError(error: unknown): boolean {
+  if (error instanceof TypeError) {
+    return NETWORK_ERROR_MESSAGE.test(error.message);
+  }
+
+  if (error instanceof Error && error.cause != null && error.cause !== error) {
+    return isNetworkError(error.cause);
+  }
+
+  return false;
+}
+
 /**
  * Determines whether a failed refresh is transient (the session should be
  * preserved and retried) rather than terminal (the refresh token is dead and
  * the user must re-authenticate).
  *
- * Mirrors the WorkOS SDK's own retry classification: a network-level failure
- * surfaces as a `TypeError` from the fetch client once its internal retries are
- * exhausted, and transient HTTP responses carry a numeric `status` in the
- * retryable set. Anything else (a terminal `invalid_grant` at 400, a 401, or an
- * unrecognized error) is treated as terminal.
+ * Mirrors the WorkOS SDK's own retry classification: transient HTTP responses
+ * (request timeout normalized to `408`, `429`, and `5xx`) surface as an
+ * exception carrying a retryable numeric `status`, and a network-level failure
+ * surfaces as a `TypeError` (wrapped by the SDK in an `Error` with the
+ * `TypeError` as its `cause`). Anything else (a terminal `invalid_grant` at
+ * 400, a 401, or an unrecognized error) is treated as terminal.
  */
 export function isTransientRefreshError(error: unknown): boolean {
-  if (error instanceof TypeError) {
-    return true;
-  }
-
   if (typeof error === 'object' && error !== null && 'status' in error) {
     const { status } = error;
-    return typeof status === 'number' && RETRYABLE_REFRESH_STATUS_CODES.has(status);
+    if (typeof status === 'number' && RETRYABLE_REFRESH_STATUS_CODES.has(status)) {
+      return true;
+    }
   }
 
-  return false;
+  return isNetworkError(error);
 }
 
 /**
@@ -421,6 +440,7 @@ export async function authkitLoader<Data = unknown>(
             error: error.cause,
             request,
             sessionData: cookieSession,
+            isTransient: error.isTransient,
           });
 
           if (result instanceof Response) {
