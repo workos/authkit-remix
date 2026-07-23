@@ -949,6 +949,30 @@ describe('session', () => {
         expect(onSessionRefreshError).toHaveBeenCalled();
       });
 
+      it('passes isTransient: true to onSessionRefreshError for a transient failure', async () => {
+        authenticateWithRefreshToken.mockRejectedValue(
+          Object.assign(new Error('Service unavailable'), { status: 503 }),
+        );
+        const onSessionRefreshError = jest.fn().mockReturnValue(redirect('/error'));
+
+        await authkitLoader(createLoaderArgs(createMockRequest()), {
+          onSessionRefreshError,
+        });
+
+        expect(onSessionRefreshError).toHaveBeenCalledWith(expect.objectContaining({ isTransient: true }));
+      });
+
+      it('passes isTransient: false to onSessionRefreshError for a terminal failure', async () => {
+        authenticateWithRefreshToken.mockRejectedValue(Object.assign(new Error('invalid_grant'), { status: 400 }));
+        const onSessionRefreshError = jest.fn().mockReturnValue(redirect('/error'));
+
+        await authkitLoader(createLoaderArgs(createMockRequest()), {
+          onSessionRefreshError,
+        });
+
+        expect(onSessionRefreshError).toHaveBeenCalledWith(expect.objectContaining({ isTransient: false }));
+      });
+
       it('allows redirect from onSessionRefreshError callback', async () => {
         authenticateWithRefreshToken.mockRejectedValue(new Error('Refresh token invalid'));
 
