@@ -894,6 +894,44 @@ describe('session', () => {
         }
       });
 
+      it.each([
+        ['a rate limit (429)', Object.assign(new Error('Too many requests'), { status: 429 })],
+        ['a server error (503)', Object.assign(new Error('Service unavailable'), { status: 503 })],
+        ['a request timeout (408)', Object.assign(new Error('Request timeout'), { status: 408 })],
+        ['a network error', new TypeError('fetch failed')],
+      ])('should preserve the session cookie when refresh fails transiently: %s', async (_label, transientError) => {
+        authenticateWithRefreshToken.mockRejectedValue(transientError);
+        getAuthorizationUrlMock.mockResolvedValue('https://auth.workos.com/oauth/authorize?state=abc123');
+
+        try {
+          await authkitLoader(createLoaderArgs(createMockRequest()));
+          fail('Expected redirect response to be thrown');
+        } catch (response: unknown) {
+          assertIsResponse(response);
+          expect(response.status).toBe(302);
+          // The sealed session must not be destroyed on a transient failure.
+          expect(destroySession).not.toHaveBeenCalled();
+          expect(response.headers.get('Set-Cookie')).toBeNull();
+        }
+      });
+
+      it('should destroy the session for a terminal refresh failure (invalid_grant)', async () => {
+        authenticateWithRefreshToken.mockRejectedValue(
+          Object.assign(new Error('invalid_grant'), { status: 400, error: 'invalid_grant' }),
+        );
+        getAuthorizationUrlMock.mockResolvedValue('https://auth.workos.com/oauth/authorize?state=abc123');
+
+        try {
+          await authkitLoader(createLoaderArgs(createMockRequest()));
+          fail('Expected redirect response to be thrown');
+        } catch (response: unknown) {
+          assertIsResponse(response);
+          expect(response.status).toBe(302);
+          expect(destroySession).toHaveBeenCalled();
+          expect(response.headers.get('Set-Cookie')).toBe('destroyed-session-cookie');
+        }
+      });
+
       it('calls onSessionRefreshError when provided and refresh fails', async () => {
         authenticateWithRefreshToken.mockRejectedValue(new Error('Refresh token invalid'));
         const onSessionRefreshError = jest.fn().mockReturnValue(redirect('/error'));

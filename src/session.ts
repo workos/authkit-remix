@@ -23,10 +23,49 @@ export type TypedResponse<T> = Response & {
 };
 
 export class SessionRefreshError extends Error {
+  /**
+   * Whether the refresh failed for a transient reason (network error, timeout,
+   * 429, or 5xx) rather than a terminal one (the refresh token is dead). When
+   * `true`, the existing session is still valid and should be preserved and
+   * retried rather than destroyed.
+   */
+  readonly isTransient: boolean;
+
   constructor(cause: unknown) {
     super('Session refresh error', { cause });
     this.name = 'SessionRefreshError';
+    this.isTransient = isTransientRefreshError(cause);
   }
+}
+
+// HTTP statuses the WorkOS SDK treats as idempotent/retryable and retries
+// internally. If one of these still surfaces, the failure is transient rather
+// than a dead refresh token: request timeouts (normalized to 408), rate limits
+// (429), and 5xx.
+const RETRYABLE_REFRESH_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
+
+/**
+ * Determines whether a failed refresh is transient (the session should be
+ * preserved and retried) rather than terminal (the refresh token is dead and
+ * the user must re-authenticate).
+ *
+ * Mirrors the WorkOS SDK's own retry classification: a network-level failure
+ * surfaces as a `TypeError` from the fetch client once its internal retries are
+ * exhausted, and transient HTTP responses carry a numeric `status` in the
+ * retryable set. Anything else (a terminal `invalid_grant` at 400, a 401, or an
+ * unrecognized error) is treated as terminal.
+ */
+export function isTransientRefreshError(error: unknown): boolean {
+  if (error instanceof TypeError) {
+    return true;
+  }
+
+  if (typeof error === 'object' && error !== null && 'status' in error) {
+    const { status } = error;
+    return typeof status === 'number' && RETRYABLE_REFRESH_STATUS_CODES.has(status);
+  }
+
+  return false;
 }
 
 /**
@@ -396,6 +435,16 @@ export async function authkitLoader<Data = unknown>(
       }
 
       const returnPathname = getReturnPathname(request.url);
+
+      // Only destroy the session for a terminal failure. A transient failure
+      // (network error, timeout, 429, or 5xx that survived the SDK's internal
+      // retries) leaves the refresh token valid, so keep the sealed cookie and
+      // let a later request refresh successfully rather than forcing the user
+      // to re-authenticate.
+      if (error.isTransient) {
+        throw redirect(await getAuthorizationUrl({ returnPathname }));
+      }
+
       throw redirect(await getAuthorizationUrl({ returnPathname }), {
         headers: {
           'Set-Cookie': await destroySession(cookieSession),
