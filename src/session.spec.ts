@@ -413,6 +413,32 @@ describe('session', () => {
         });
       });
 
+      it('does not validate the access token issuer claim by default', async () => {
+        jwtVerify.mockClear();
+        await authkitLoader(createLoaderArgs(createMockRequest()));
+
+        expect(jwtVerify).toHaveBeenCalled();
+        for (const call of jwtVerify.mock.calls) {
+          expect(call[0]).toBe('valid.jwt.token');
+          expect(call[2]).toBeUndefined();
+        }
+      });
+
+      it('validates the access token issuer claim when issuer is configured', async () => {
+        jwtVerify.mockClear();
+        process.env.WORKOS_ISSUER = 'https://auth.example.com';
+        try {
+          await authkitLoader(createLoaderArgs(createMockRequest()));
+        } finally {
+          delete process.env.WORKOS_ISSUER;
+        }
+
+        expect(jwtVerify).toHaveBeenCalled();
+        for (const call of jwtVerify.mock.calls) {
+          expect(call[2]).toEqual({ issuer: 'https://auth.example.com' });
+        }
+      });
+
       it('should handle roles array with multiple roles', async () => {
         // Override the JWT decoding to return multiple roles
         (jose.decodeJwt as jest.Mock).mockReturnValueOnce({
