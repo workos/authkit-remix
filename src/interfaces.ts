@@ -177,11 +177,11 @@ export interface AuthKitConfig {
   apiPort?: number;
 
   /**
-   * The expected `iss` claim of WorkOS access tokens
-   * Equivalent to the WORKOS_ISSUER environment variable
+   * The expected `iss` claim of WorkOS access tokens, or a list of accepted issuers
+   * Equivalent to the WORKOS_ISSUER environment variable (comma-separated for a list)
    * When not set, the issuer claim is not validated
    */
-  issuer?: string;
+  issuer?: string | string[];
 
   /**
    * The maximum age of the session cookie in seconds
