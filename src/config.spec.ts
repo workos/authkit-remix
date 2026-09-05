@@ -109,6 +109,16 @@ describe('config', () => {
     expect(typeof getConfig('apiHttps')).toBe('boolean');
   });
 
+  it('parses a comma-separated WORKOS_ISSUER into a list', () => {
+    configure((key) => (key === 'WORKOS_ISSUER' ? 'https://a.example.com, https://b.example.com,' : undefined));
+    expect(getConfig('issuer')).toEqual(['https://a.example.com', 'https://b.example.com']);
+  });
+
+  it('keeps a single WORKOS_ISSUER as a string', () => {
+    configure((key) => (key === 'WORKOS_ISSUER' ? 'https://a.example.com' : undefined));
+    expect(getConfig('issuer')).toBe('https://a.example.com');
+  });
+
   it('throws an error if cookiePassword is too short', () => {
     expect(() => {
       configure({ cookiePassword: 'short' });

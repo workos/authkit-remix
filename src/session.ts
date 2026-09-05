@@ -655,8 +655,9 @@ export async function getSessionFromCookie(cookie: string, session?: SessionData
 
 async function verifyAccessToken(accessToken: string) {
   const JWKS = createRemoteJWKSet(new URL(getWorkOS().userManagement.getJwksUrl(getConfig('clientId'))));
+  const issuer = getConfig('issuer');
   try {
-    await jwtVerify(accessToken, JWKS);
+    await jwtVerify(accessToken, JWKS, issuer ? { issuer } : undefined);
     return true;
   } catch (e) {
     return false;
