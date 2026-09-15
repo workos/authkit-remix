@@ -118,6 +118,18 @@ describe('auth', () => {
       },
     };
 
+    // What the client is allowed to see: no accessToken, sealedSession, or headers
+    const expectedAuth = {
+      user: mockUser,
+      sessionId: 'session-123',
+      organizationId: 'org_123456',
+      role: 'admin',
+      roles: ['admin', 'member'],
+      permissions: ['read', 'write'],
+      entitlements: ['premium'],
+      impersonator: null,
+    };
+
     beforeEach(() => {
       refreshSession.mockResolvedValue(mockAuthResponse);
     });
@@ -132,7 +144,7 @@ describe('auth', () => {
       const result = await switchToOrganization(request, organizationId);
 
       expect(data).toHaveBeenCalledWith(
-        { success: true, auth: mockAuthResponse },
+        { success: true, auth: expectedAuth },
         {
           headers: {
             'Set-Cookie': 'new-cookie-value',
@@ -140,13 +152,70 @@ describe('auth', () => {
         },
       );
       expect(result).toEqual({
-        data: { success: true, auth: mockAuthResponse },
+        data: { success: true, auth: expectedAuth },
         init: {
           headers: {
             'Set-Cookie': 'new-cookie-value',
           },
         },
       });
+    });
+
+    it('should not expose accessToken, sealedSession, or headers to the client', async () => {
+      const result = await switchToOrganization(request, organizationId);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const auth = (result as any).data.auth;
+      expect(auth).not.toHaveProperty('accessToken');
+      expect(auth).not.toHaveProperty('sealedSession');
+      expect(auth).not.toHaveProperty('headers');
+      expect(JSON.stringify(result)).not.toContain('new-access-token');
+      expect(JSON.stringify(result)).not.toContain('sealed-session-data');
+    });
+
+    it('should normalize missing claims to authkitLoader defaults', async () => {
+      refreshSession.mockResolvedValueOnce({
+        ...mockAuthResponse,
+        organizationId: undefined,
+        role: undefined,
+        roles: undefined,
+        permissions: undefined,
+        entitlements: undefined,
+      });
+
+      const result = await switchToOrganization(request, organizationId);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((result as any).data.auth).toEqual({
+        ...expectedAuth,
+        organizationId: null,
+        role: null,
+        roles: null,
+        permissions: [],
+        entitlements: [],
+      });
+    });
+
+    it.each([
+      'https://evil.example.com/phish',
+      '//evil.example.com',
+      '/\\evil.example.com',
+      '/dashboard\r\nSet-Cookie: x=y',
+      'javascript:alert(1)',
+    ])('rejects off-origin returnTo %s and redirects to /', async (returnTo) => {
+      const result = await switchToOrganization(request, organizationId, { returnTo });
+
+      expect(redirect).toHaveBeenCalledWith('/', { headers: { 'Set-Cookie': 'new-cookie-value' } });
+      assertIsResponse(result);
+      expect(result.headers.get('Location')).toBe('/');
+    });
+
+    it('preserves a same-origin returnTo path with query and hash', async () => {
+      const returnTo = '/settings/orgs?tab=members#top';
+      const result = await switchToOrganization(request, organizationId, { returnTo });
+
+      assertIsResponse(result);
+      expect(result.headers.get('Location')).toBe(returnTo);
     });
 
     it('should redirect to returnTo when provided', async () => {
@@ -268,7 +337,7 @@ describe('auth', () => {
       await switchToOrganization(request, organizationId);
 
       expect(data).toHaveBeenCalledWith(
-        { success: true, auth: mockResponseWithoutCookie },
+        { success: true, auth: expectedAuth },
         {
           headers: {
             'Set-Cookie': '',

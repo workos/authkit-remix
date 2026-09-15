@@ -1,7 +1,8 @@
 import { LoaderFunctionArgs, data, redirect } from '@remix-run/node';
 import { getAuthorizationUrl } from './get-authorization-url.js';
-import { NoUserInfo, UserInfo } from './interfaces.js';
+import { AuthorizedData, NoUserInfo, UserInfo } from './interfaces.js';
 import { getClaimsFromAccessToken, getSessionFromCookie, refreshSession, terminateSession } from './session.js';
+import { sanitizeReturnPathname } from './return-pathname.js';
 import { getConfig } from './config.js';
 
 export async function getSignInUrl(returnPathname?: string) {
@@ -91,26 +92,30 @@ export async function switchToOrganization(
   { returnTo }: { returnTo?: string } = {},
 ) {
   try {
-    const auth = await refreshSession(request, { organizationId });
+    const session = await refreshSession(request, { organizationId });
+    const headers = { 'Set-Cookie': session.headers?.['Set-Cookie'] ?? '' };
 
-    // if returnTo is provided, redirect to there
+    // if returnTo is provided, redirect there. Same-origin pathname only, so a
+    // request-controlled value can't turn this into an open redirect.
     if (returnTo) {
-      return redirect(returnTo, {
-        headers: {
-          'Set-Cookie': auth.headers?.['Set-Cookie'] ?? '',
-        },
-      });
+      return redirect(sanitizeReturnPathname(returnTo), { headers });
     }
 
-    // otherwise return the updated auth data
-    return data(
-      { success: true, auth },
-      {
-        headers: {
-          'Set-Cookie': auth.headers?.['Set-Cookie'] ?? '',
-        },
-      },
-    );
+    // otherwise return the updated auth data. Only expose the same fields as
+    // authkitLoader: the access token and sealed session (which contains the
+    // refresh token) must stay server-side / in the httpOnly cookie.
+    const auth: AuthorizedData = {
+      user: session.user,
+      sessionId: session.sessionId,
+      organizationId: session.organizationId ?? null,
+      role: session.role ?? null,
+      roles: session.roles ?? null,
+      permissions: session.permissions ?? [],
+      entitlements: session.entitlements ?? [],
+      impersonator: session.impersonator,
+    };
+
+    return data({ success: true, auth }, { headers });
   } catch (error) {
     if (error instanceof Response && error.status === 302) {
       throw error;
