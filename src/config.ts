@@ -93,6 +93,14 @@ export class Configuration {
         return (isNaN(num) ? undefined : num) as AuthKitConfig[K];
       }
 
+      if (key === 'issuer' && typeof envValue === 'string') {
+        const issuers = envValue
+          .split(',')
+          .map((issuer) => issuer.trim())
+          .filter(Boolean);
+        return (issuers.length <= 1 ? issuers[0] : issuers) as AuthKitConfig[K];
+      }
+
       return envValue as AuthKitConfig[K];
     }
 
