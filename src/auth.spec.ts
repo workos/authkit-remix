@@ -196,6 +196,28 @@ describe('auth', () => {
       });
     });
 
+    it.each([
+      'https://evil.example.com/phish',
+      '//evil.example.com',
+      '/\\evil.example.com',
+      '/dashboard\r\nSet-Cookie: x=y',
+      'javascript:alert(1)',
+    ])('rejects off-origin returnTo %s and redirects to /', async (returnTo) => {
+      const result = await switchToOrganization(request, organizationId, { returnTo });
+
+      expect(redirect).toHaveBeenCalledWith('/', { headers: { 'Set-Cookie': 'new-cookie-value' } });
+      assertIsResponse(result);
+      expect(result.headers.get('Location')).toBe('/');
+    });
+
+    it('preserves a same-origin returnTo path with query and hash', async () => {
+      const returnTo = '/settings/orgs?tab=members#top';
+      const result = await switchToOrganization(request, organizationId, { returnTo });
+
+      assertIsResponse(result);
+      expect(result.headers.get('Location')).toBe(returnTo);
+    });
+
     it('should redirect to returnTo when provided', async () => {
       const returnTo = '/dashboard';
       const result = await switchToOrganization(request, organizationId, { returnTo });

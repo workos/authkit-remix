@@ -2,6 +2,7 @@ import { LoaderFunctionArgs, data, redirect } from '@remix-run/node';
 import { getAuthorizationUrl } from './get-authorization-url.js';
 import { AuthorizedData, NoUserInfo, UserInfo } from './interfaces.js';
 import { getClaimsFromAccessToken, getSessionFromCookie, refreshSession, terminateSession } from './session.js';
+import { sanitizeReturnPathname } from './return-pathname.js';
 import { getConfig } from './config.js';
 
 export async function getSignInUrl(returnPathname?: string) {
@@ -94,9 +95,10 @@ export async function switchToOrganization(
     const session = await refreshSession(request, { organizationId });
     const headers = { 'Set-Cookie': session.headers?.['Set-Cookie'] ?? '' };
 
-    // if returnTo is provided, redirect to there
+    // if returnTo is provided, redirect there. Same-origin pathname only, so a
+    // request-controlled value can't turn this into an open redirect.
     if (returnTo) {
-      return redirect(returnTo, { headers });
+      return redirect(sanitizeReturnPathname(returnTo), { headers });
     }
 
     // otherwise return the updated auth data. Only expose the same fields as
