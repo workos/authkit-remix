@@ -130,6 +130,29 @@ export const loader = authLoader({
 });
 ```
 
+## Migrating to browser-bound sign-in
+
+`getSignInUrl(returnPathname?, request?)` and `getSignUpUrl(returnPathname?, request?)` now return **`{ url, headers }`**, not a string. Forward `headers` on the response that starts authentication; returning just the URL will make the callback fail. Do not serialize the result (especially its cookie headers) into loader data for the browser.
+
+Use dedicated sign-in/sign-up routes rather than creating login URLs on every page render. This starts the ten-minute login window only when the user chooses to authenticate and avoids accumulating unused flow cookies. Pass the incoming `request` so cookie security attributes reflect the public request protocol. Behind a TLS-terminating proxy, configure the proxy to overwrite `X-Forwarded-Proto` with the trusted client-facing protocol.
+
+```ts
+// app/routes/sign-in.ts
+import { redirect, type LoaderFunctionArgs } from '@remix-run/node';
+import { getSignInUrl } from '@workos-inc/authkit-remix';
+
+export async function loader({ request }: LoaderFunctionArgs) {
+  const { url, headers } = await getSignInUrl('/dashboard', request);
+  return redirect(url, { headers });
+}
+```
+
+Create `app/routes/sign-up.ts` the same way using `getSignUpUrl`. Link to these routes with ordinary `<a>` elements (or `<Link reloadDocument>`) and do not prefetch them. If you generate both URLs in a loader instead, append both returned `Set-Cookie` values to response headers; never put them in the loader's JSON data.
+
+Deploy initiation helpers and the callback together across all instances. Old in-flight sign-ins must restart: callbacks without the new browser cookie intentionally fail closed. Do not mix old and new handlers during a rolling deployment. Existing authenticated sessions are unaffected. SDK-managed redirects (`ensureSignedIn`, refresh failures, and organization-switch reauthentication) forward the cookie automatically.
+
+The URL contains only a random state nonce. The PKCE verifier and return pathname are encrypted in a short-lived, host-only HttpOnly cookie, independently for each flow. The callback validates that cookie before exchanging any code, supplies the verifier to WorkOS, and clears the flow cookie on success or failure. Custom session storage does not replace this cookie; login initiation and callback must share an origin and cookie password.
+
 ## Usage
 
 ### Access authentication data in your Remix application
@@ -147,7 +170,7 @@ export function App() {
   // Retrieves the user from the session or returns `null` if no user is signed in
   // Other supported values include `sessionId`, `organizationId`,
   // `role`, `permissions`, `entitlements`, and `impersonator`.
-  const { user, signInUrl, signUpUrl } = useLoaderData<typeof loader>();
+  const { user } = useLoaderData<typeof loader>();
 
   return (
     <div>
@@ -161,30 +184,24 @@ For pages where you want to display a signed-in and signed-out view, use `authki
 
 ```tsx
 import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node';
-import { Form, Link, useLoaderData } from '@remix-run/react';
-import { getSignInUrl, getSignUpUrl, signOut, authkitLoader } from '@workos-inc/authkit-remix';
+import { Form, useLoaderData } from '@remix-run/react';
+import { signOut, authkitLoader } from '@workos-inc/authkit-remix';
 
-export const loader = (args: LoaderFunctionArgs) =>
-  authkitLoader(args, async ({ request, auth }) => {
-    return {
-      signInUrl: await getSignInUrl(),
-      signUpUrl: await getSignUpUrl(),
-    };
-  });
+export const loader = (args: LoaderFunctionArgs) => authkitLoader(args);
 
 export async function action({ request }: ActionFunctionArgs) {
   return await signOut(request);
 }
 
 export default function HomePage() {
-  const { user, signInUrl, signUpUrl } = useLoaderData<typeof loader>();
+  const { user } = useLoaderData<typeof loader>();
 
   if (!user) {
     return (
       <>
-        <Link to={signInUrl}>Log in</Link>
+        <a href="/sign-in">Log in</a>
         <br />
-        <Link to={signUpUrl}>Sign Up</Link>
+        <a href="/sign-up">Sign Up</a>
       </>
     );
   }

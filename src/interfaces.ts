@@ -3,6 +3,12 @@ import type { OauthTokens, User } from '@workos-inc/node';
 
 export type DataWithResponseInit<T> = ReturnType<typeof data<T>>;
 
+export interface GetAuthURLResult {
+  url: string;
+  /** Must be forwarded to the browser on the response that starts sign-in. */
+  headers: { 'Set-Cookie': string };
+}
+
 export type HandleAuthOptions = {
   returnPathname?: string;
   onSuccess?: (data: AuthLoaderSuccessData) => void | Promise<void>;

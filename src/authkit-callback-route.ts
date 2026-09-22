@@ -1,6 +1,8 @@
 import { LoaderFunctionArgs, data, redirect } from '@remix-run/node';
 import { getConfig } from './config.js';
 import { HandleAuthOptions } from './interfaces.js';
+import { getPKCECookie, readPKCECookie } from './pkce.js';
+import { sanitizeReturnPathname } from './return-pathname.js';
 import { encryptSession } from './session.js';
 import { configureSessionStorage } from './sessionStorage.js';
 import { getWorkOS } from './workos.js';
@@ -15,14 +17,21 @@ export function authLoader(options: HandleAuthOptions = {}) {
 
     const code = url.searchParams.get('code');
     const state = url.searchParams.get('state');
-    let returnPathname = state && state !== 'null' ? JSON.parse(atob(state)).returnPathname : null;
+    const headers = new Headers();
+    if (state) {
+      headers.append('Set-Cookie', await getPKCECookie(state, request).serialize('', { maxAge: 0 }));
+    }
 
     if (code) {
       try {
+        if (!state) throw new Error('Missing OAuth state');
+        const { codeVerifier, returnPathname: stateReturnPathname } = await readPKCECookie(request, state);
+
         const { accessToken, refreshToken, user, impersonator, oauthTokens, organizationId } =
           await getWorkOS().userManagement.authenticateWithCode({
             clientId: getConfig('clientId'),
             code,
+            codeVerifier,
           });
 
         // Clean up params
@@ -30,7 +39,7 @@ export function authLoader(options: HandleAuthOptions = {}) {
         url.searchParams.delete('state');
 
         // Redirect to the requested path and store the session
-        returnPathname = returnPathname ?? returnPathnameOption;
+        const returnPathname = sanitizeReturnPathname(stateReturnPathname ?? returnPathnameOption);
 
         // Extract the search params if they are present
         if (returnPathname.includes('?')) {
@@ -79,11 +88,8 @@ export function authLoader(options: HandleAuthOptions = {}) {
           url.protocol = 'https:';
         }
 
-        return redirect(url.toString(), {
-          headers: {
-            'Set-Cookie': cookie,
-          },
-        });
+        headers.append('Set-Cookie', cookie);
+        return redirect(url.toString(), { headers });
       } catch (error) {
         const errorRes = {
           error: error instanceof Error ? error.message : String(error),
@@ -95,6 +101,9 @@ export function authLoader(options: HandleAuthOptions = {}) {
       }
     }
 
+    // Authorization errors (e.g. user cancellation) also consume the flow cookie.
+    if (state) return new Response(null, { headers });
+
     function errorResponse() {
       return data(
         {
@@ -103,7 +112,7 @@ export function authLoader(options: HandleAuthOptions = {}) {
             description: 'Couldn’t sign in. If you are not sure what happened, please contact your organization admin.',
           },
         },
-        { status: 500 },
+        { status: 500, headers },
       );
     }
   };

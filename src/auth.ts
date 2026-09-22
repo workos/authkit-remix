@@ -5,12 +5,14 @@ import { getClaimsFromAccessToken, getSessionFromCookie, refreshSession, termina
 import { sanitizeReturnPathname } from './return-pathname.js';
 import { getConfig } from './config.js';
 
-export async function getSignInUrl(returnPathname?: string) {
-  return getAuthorizationUrl({ returnPathname, screenHint: 'sign-in' });
+/** Forward the returned headers to the browser, e.g. `redirect(url, { headers })`. */
+export async function getSignInUrl(returnPathname?: string, request?: Request) {
+  return getAuthorizationUrl({ returnPathname, screenHint: 'sign-in', request });
 }
 
-export async function getSignUpUrl(returnPathname?: string) {
-  return getAuthorizationUrl({ returnPathname, screenHint: 'sign-up' });
+/** Forward the returned headers to the browser, e.g. `redirect(url, { headers })`. */
+export async function getSignUpUrl(returnPathname?: string, request?: Request) {
+  return getAuthorizationUrl({ returnPathname, screenHint: 'sign-up', request });
 }
 
 export async function signOut(request: Request, options?: { returnTo?: string }) {
@@ -124,7 +126,8 @@ export async function switchToOrganization(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const errorCause: any = error instanceof Error ? error.cause : null;
     if (errorCause?.error === 'sso_required' || errorCause?.error === 'mfa_enrollment') {
-      return redirect(await getAuthorizationUrl({ organizationId }));
+      const { url, headers } = await getAuthorizationUrl({ organizationId, request });
+      return redirect(url, { headers });
     }
 
     return data(
