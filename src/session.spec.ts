@@ -45,6 +45,10 @@ const getSessionStorage = jest.mocked(getSessionStorageMock);
 const configureSessionStorage = jest.mocked(configureSessionStorageMock);
 const jwtVerify = jest.mocked(jose.jwtVerify);
 const getAuthorizationUrlMock = jest.mocked(getAuthorizationUrl);
+const authorizationHeaders = new Headers([
+  ['Set-Cookie', 'wos-auth-verifier-old=; Path=/; Max-Age=0'],
+  ['Set-Cookie', 'wos-auth-verifier-test=sealed; HttpOnly'],
+]);
 
 function getHeaderValue(headers: HeadersInit | undefined, name: string): string | null {
   if (!headers) {
@@ -122,7 +126,10 @@ describe('session', () => {
 
     // Reset getAuthorizationUrl mock
     getAuthorizationUrlMock.mockReset();
-    getAuthorizationUrlMock.mockResolvedValue('https://auth.workos.com/oauth/authorize');
+    getAuthorizationUrlMock.mockResolvedValue({
+      url: 'https://auth.workos.com/oauth/authorize',
+      headers: authorizationHeaders,
+    });
   });
 
   describe('encryptSession', () => {
@@ -167,6 +174,32 @@ describe('session', () => {
           Cookie: cookie,
         }),
       });
+
+    it.each([true, false])('clears abandoned PKCE cookies when signing out (has session: %s)', async (hasSession) => {
+      const mockSession = createMockSession({
+        has: jest.fn().mockReturnValue(hasSession),
+        get: jest.fn().mockReturnValue('encrypted-jwt'),
+      });
+      getSession.mockResolvedValueOnce(mockSession);
+      getLogoutUrl.mockClear();
+      if (hasSession) {
+        unsealData.mockResolvedValueOnce({ accessToken: 'test-token' });
+        (jose.decodeJwt as jest.Mock).mockReturnValueOnce({ sid: 'test-session-id' });
+      }
+      const names = ['a', 'b'].map((suffix) => `wos-auth-verifier-${suffix.repeat(32)}`);
+      const request = createMockRequest([...names.map((name) => `${name}=sealed`), 'theme=dark'].join('; '));
+
+      const response = await terminateSession(request, { returnTo: '/login' });
+
+      expect(response.headers.getSetCookie()).toEqual([
+        'destroyed-session-cookie',
+        ...names.map((name) => `${name}=; Path=/; Max-Age=0`),
+      ]);
+      expect(response.headers.get('Location')).toBe(
+        hasSession ? 'https://auth.workos.com/logout/test-session-id' : '/login',
+      );
+      if (!hasSession) expect(getLogoutUrl).not.toHaveBeenCalled();
+    });
 
     it('should redirect to root when session token has no sessionId', async () => {
       const mockSession = createMockSession({
@@ -303,7 +336,9 @@ describe('session', () => {
           assertIsResponse(response);
           expect(response.status).toBe(302);
           expect(response.headers.get('Location')).toMatch(/^https:\/\/auth\.workos\.com\/oauth/);
-          expect(response.headers.get('Set-Cookie')).toBe('destroyed-session-cookie');
+          expect(response.headers.getSetCookie()).toEqual(expect.arrayContaining(authorizationHeaders.getSetCookie()));
+          expect(response.headers.get('Set-Cookie')).toContain('destroyed-session-cookie');
+          expect(response.headers.get('Set-Cookie')).toContain('wos-auth-verifier-test=sealed');
         }
       });
 
@@ -917,8 +952,11 @@ describe('session', () => {
       it('should redirect to authorization URL preserving returnPathname when refresh fails', async () => {
         authenticateWithRefreshToken.mockRejectedValue(new Error('Refresh token invalid'));
 
-        // Setup the mock to return a URL with state parameter
-        getAuthorizationUrlMock.mockResolvedValue('https://auth.workos.com/oauth/authorize?state=abc123');
+        // Setup the mock to return a URL and all flow-cookie headers.
+        getAuthorizationUrlMock.mockResolvedValue({
+          url: 'https://auth.workos.com/oauth/authorize?state=abc123',
+          headers: authorizationHeaders,
+        });
 
         try {
           const mockRequest = createMockRequest('test-cookie', 'https://app.example.com/dashboard/settings');
@@ -928,11 +966,13 @@ describe('session', () => {
           assertIsResponse(response);
           expect(response.status).toBe(302);
           expect(response.headers.get('Location')).toBe('https://auth.workos.com/oauth/authorize?state=abc123');
-          expect(response.headers.get('Set-Cookie')).toBe('destroyed-session-cookie');
+          expect(response.headers.get('Set-Cookie')).toContain('destroyed-session-cookie');
+          expect(response.headers.get('Set-Cookie')).toContain('wos-auth-verifier-test=sealed');
 
           // Verify getAuthorizationUrl was called with the correct returnPathname
           expect(getAuthorizationUrlMock).toHaveBeenCalledWith({
             returnPathname: '/dashboard/settings',
+            request: expect.any(Request),
           });
         }
       });
@@ -950,7 +990,10 @@ describe('session', () => {
         ],
       ])('should preserve the session cookie when refresh fails transiently: %s', async (_label, transientError) => {
         authenticateWithRefreshToken.mockRejectedValue(transientError);
-        getAuthorizationUrlMock.mockResolvedValue('https://auth.workos.com/oauth/authorize?state=abc123');
+        getAuthorizationUrlMock.mockResolvedValue({
+          url: 'https://auth.workos.com/oauth/authorize?state=abc123',
+          headers: authorizationHeaders,
+        });
 
         try {
           await authkitLoader(createLoaderArgs(createMockRequest()));
@@ -960,7 +1003,7 @@ describe('session', () => {
           expect(response.status).toBe(302);
           // The sealed session must not be destroyed on a transient failure.
           expect(destroySession).not.toHaveBeenCalled();
-          expect(response.headers.get('Set-Cookie')).toBeNull();
+          expect(response.headers.getSetCookie()).toEqual(authorizationHeaders.getSetCookie());
         }
       });
 
@@ -968,7 +1011,10 @@ describe('session', () => {
         authenticateWithRefreshToken.mockRejectedValue(
           Object.assign(new Error('invalid_grant'), { status: 400, error: 'invalid_grant' }),
         );
-        getAuthorizationUrlMock.mockResolvedValue('https://auth.workos.com/oauth/authorize?state=abc123');
+        getAuthorizationUrlMock.mockResolvedValue({
+          url: 'https://auth.workos.com/oauth/authorize?state=abc123',
+          headers: authorizationHeaders,
+        });
 
         try {
           await authkitLoader(createLoaderArgs(createMockRequest()));
@@ -977,7 +1023,9 @@ describe('session', () => {
           assertIsResponse(response);
           expect(response.status).toBe(302);
           expect(destroySession).toHaveBeenCalled();
-          expect(response.headers.get('Set-Cookie')).toBe('destroyed-session-cookie');
+          expect(response.headers.getSetCookie()).toEqual(expect.arrayContaining(authorizationHeaders.getSetCookie()));
+          expect(response.headers.get('Set-Cookie')).toContain('destroyed-session-cookie');
+          expect(response.headers.get('Set-Cookie')).toContain('wos-auth-verifier-test=sealed');
         }
       });
 
@@ -1164,6 +1212,7 @@ describe('session', () => {
         assertIsResponse(response);
         expect(response.status).toBe(302);
         expect(response.headers.get('Location')).toMatch(/^https:\/\/auth\.workos\.com\/oauth/);
+        expect(response.headers.get('Set-Cookie')).toContain('wos-auth-verifier-test=sealed');
       }
     });
 

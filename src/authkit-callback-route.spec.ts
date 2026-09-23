@@ -9,23 +9,28 @@ import { configureSessionStorage } from './sessionStorage.js';
 import { isDataWithResponseInit } from './utils.js';
 import { DataWithResponseInit } from './interfaces.js';
 
-// Mock dependencies
-const fakeWorkosInstance = {
-  userManagement: {
-    authenticateWithCode: jest.fn(),
-    getJwksUrl: jest.fn(() => 'https://api.workos.com/sso/jwks/client_1234567890'),
-  },
-};
+import { getAuthorizationUrl } from './get-authorization-url.js';
+import { getPKCECookie, readPKCECookie } from './pkce.js';
+import { sealData } from 'iron-session';
+import { getConfig } from './config.js';
 
-jest.mock('./workos.js', () => ({
-  getWorkOS: jest.fn(() => fakeWorkosInstance),
-}));
+async function createCallbackRequest(url = 'http://example.com/callback', returnPathname?: string) {
+  const { url: authUrl, headers } = await getAuthorizationUrl({ returnPathname, request: new Request(url) });
+  const state = new URL(authUrl).searchParams.get('state')!;
+  return createRequestWithSearchParams(
+    new Request(url, { headers: { Cookie: headers.getSetCookie()[0].split(';')[0] } }),
+    {
+      code: 'test-code',
+      state,
+    },
+  );
+}
 
 describe('authLoader', () => {
   let loader: ReturnType<typeof authLoader>;
   let request: Request;
   const workos = getWorkOS();
-  const authenticateWithCode = jest.mocked(workos.userManagement.authenticateWithCode);
+  const authenticateWithCode = jest.spyOn(workos.userManagement, 'authenticateWithCode');
 
   beforeAll(() => {
     // Silence console.error during tests
@@ -34,18 +39,86 @@ describe('authLoader', () => {
   });
 
   beforeEach(async () => {
+    authenticateWithCode.mockClear();
     const mockAuthResponse = createAuthWithCodeResponse();
     authenticateWithCode.mockResolvedValue(mockAuthResponse);
 
     loader = authLoader();
-    const url = new URL('http://example.com/callback');
-
-    request = createRequestWithSearchParams(new Request(url), {
-      code: 'test-code',
-    });
+    request = await createCallbackRequest();
   });
 
   describe('error handling', () => {
+    it('rejects an attacker-supplied code without browser-bound state before exchanging it', async () => {
+      authenticateWithCode.mockClear();
+      const response = await loader({
+        request: new Request('https://example.com/callback?code=attacker-code'),
+        params: {},
+        context: {},
+      });
+
+      expect(authenticateWithCode).not.toHaveBeenCalled();
+      expect((response as DataWithResponseInit<unknown>).init?.status).toBe(500);
+    });
+
+    it.each([
+      'missing-cookie',
+      'wrong-flow',
+      'tampered-cookie',
+      'url-as-cookie',
+      'legacy-state',
+      'malformed-state',
+      'expired-cookie',
+      'invalid-payload',
+    ])('rejects %s before exchanging a code or issuing a session', async (scenario) => {
+      const url = new URL(request.url);
+      const state = url.searchParams.get('state')!;
+      if (scenario === 'missing-cookie') request.headers.delete('Cookie');
+      if (scenario === 'wrong-flow') {
+        const other = await createCallbackRequest();
+        const otherState = new URL(other.url).searchParams.get('state')!;
+        const otherValue = await getPKCECookie(otherState).parse(other.headers.get('Cookie'));
+        request.headers.set('Cookie', (await getPKCECookie(state).serialize(otherValue)).split(';')[0]);
+      }
+      if (scenario === 'tampered-cookie' || scenario === 'url-as-cookie') {
+        request.headers.set(
+          'Cookie',
+          (await getPKCECookie(state).serialize(scenario === 'url-as-cookie' ? state : 'tampered')).split(';')[0],
+        );
+      }
+      if (scenario === 'legacy-state' || scenario === 'malformed-state') {
+        request = createRequestWithSearchParams(request, {
+          state: scenario === 'legacy-state' ? btoa(JSON.stringify({ returnPathname: '/billing' })) : '!not-base64',
+        });
+      }
+      if (scenario === 'invalid-payload') {
+        const invalid = await sealData({ nonce: state }, { password: getConfig('cookiePassword'), ttl: 600 });
+        request.headers.set('Cookie', (await getPKCECookie(state).serialize(invalid)).split(';')[0]);
+      }
+      const clock =
+        scenario === 'expired-cookie' ? jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 700_000) : undefined;
+      try {
+        const response = (await loader({ request, params: {}, context: {} })) as DataWithResponseInit<unknown>;
+        expect(authenticateWithCode).not.toHaveBeenCalled();
+        expect(response.init?.status).toBe(500);
+        const cookies = new Headers(response.init?.headers).get('Set-Cookie');
+        expect(cookies).toContain('Max-Age=0');
+        expect(cookies).not.toContain('wos-session=');
+      } finally {
+        clock?.mockRestore();
+      }
+    });
+
+    it('clears the flow cookie when authorization is canceled', async () => {
+      request = createRequestWithSearchParams(request, (params) => {
+        params.delete('code');
+        params.set('error', 'access_denied');
+      });
+      const response = await loader({ request, params: {}, context: {} });
+      assertIsResponse(response);
+      expect(response.headers.get('Set-Cookie')).toContain('Max-Age=0');
+      expect(authenticateWithCode).not.toHaveBeenCalled();
+    });
+
     it('returns undefined if there is no code', async () => {
       const response = await loader({
         request: new Request('https://example.com'),
@@ -85,11 +158,14 @@ describe('authLoader', () => {
     expect(workos.userManagement.authenticateWithCode).toHaveBeenCalledWith({
       clientId: process.env.WORKOS_CLIENT_ID,
       code: 'test-code',
+      codeVerifier: (await readPKCECookie(request, new URL(request.url).searchParams.get('state')!)).codeVerifier,
     });
 
     assertIsResponse(response);
     expect(response.status).toBe(302);
-    expect(response.headers.get('Set-Cookie')).toBeDefined();
+    expect(response.headers.get('Set-Cookie')).toContain('wos-session=');
+    expect(response.headers.get('Set-Cookie')).toContain('wos-auth-verifier-');
+    expect(response.headers.get('Set-Cookie')).toContain('Max-Age=0');
   });
 
   it('should redirect to the returnPathname', async () => {
@@ -103,6 +179,19 @@ describe('authLoader', () => {
     assertIsResponse(response);
     expect(response.status).toBe(302);
     expect(response.headers.get('Location')).toBe('http://example.com/dashboard');
+  });
+
+  it('uses the configured default when the requested return path is too large for a cookie', async () => {
+    loader = authLoader({ returnPathname: '/dashboard' });
+    const response = await loader({
+      request: await createCallbackRequest('http://example.com/callback', '/' + 'a'.repeat(2047)),
+      params: {},
+      context: {},
+    });
+
+    assertIsResponse(response);
+    expect(response.headers.get('Location')).toBe('http://example.com/dashboard');
+    expect(authenticateWithCode).toHaveBeenCalledTimes(1);
   });
 
   it('copies search params from returnPathname', async () => {
@@ -132,9 +221,7 @@ describe('authLoader', () => {
 
   it('uses returnPathname from state when provided', async () => {
     const response = await loader({
-      request: createRequestWithSearchParams(request, {
-        state: btoa(JSON.stringify({ returnPathname: '/profile' })),
-      }),
+      request: await createCallbackRequest('http://example.com/callback', '/profile'),
       params: {},
       context: {},
     });
@@ -198,9 +285,7 @@ describe('authLoader', () => {
     process.env.WORKOS_REDIRECT_URI = 'https://example.com/callback';
 
     try {
-      const request = createRequestWithSearchParams(new Request('http://example.com/callback'), {
-        code: 'test-code-123',
-      });
+      const request = await createCallbackRequest();
 
       const loader = authLoader();
       const response = await loader({
@@ -233,9 +318,7 @@ describe('authLoader', () => {
     process.env.WORKOS_REDIRECT_URI = 'https://example.com:8443/callback';
 
     try {
-      const request = createRequestWithSearchParams(new Request('http://example.com:3000/callback'), {
-        code: 'test-code-123',
-      });
+      const request = await createCallbackRequest('http://example.com:3000/callback');
 
       const loader = authLoader();
       const response = await loader({

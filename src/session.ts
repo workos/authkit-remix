@@ -1,5 +1,6 @@
 import { data, redirect, type LoaderFunctionArgs, type SessionData } from '@remix-run/node';
 import { getAuthorizationUrl } from './get-authorization-url.js';
+import { clearPKCECookies, getPKCECookieNames } from './pkce.js';
 import type {
   AccessToken,
   AuthKitLoaderOptions,
@@ -99,7 +100,8 @@ export async function refreshSession(request: Request, { organizationId }: { org
   const session = await getSessionFromCookie(request.headers.get('Cookie') as string);
 
   if (!session) {
-    throw redirect(await getAuthorizationUrl());
+    const { url, headers } = await getAuthorizationUrl({ request });
+    throw redirect(url, { headers });
   }
 
   try {
@@ -375,11 +377,10 @@ export async function authkitLoader<Data = unknown>(
         const returnPathname = getReturnPathname(request.url);
         const cookieSession = await getSession(request.headers.get('Cookie'));
 
-        throw redirect(await getAuthorizationUrl({ returnPathname }), {
-          headers: {
-            'Set-Cookie': await destroySession(cookieSession),
-          },
-        });
+        const { url, headers: authHeaders } = await getAuthorizationUrl({ returnPathname, request });
+        const headers = new Headers(authHeaders);
+        headers.append('Set-Cookie', await destroySession(cookieSession));
+        throw redirect(url, { headers });
       }
 
       const auth: UnauthorizedData = {
@@ -461,15 +462,13 @@ export async function authkitLoader<Data = unknown>(
       // retries) leaves the refresh token valid, so keep the sealed cookie and
       // let a later request refresh successfully rather than forcing the user
       // to re-authenticate.
-      if (error.isTransient) {
-        throw redirect(await getAuthorizationUrl({ returnPathname }));
+      const { url, headers: authHeaders } = await getAuthorizationUrl({ returnPathname, request });
+      const headers = new Headers(authHeaders);
+      if (!error.isTransient) {
+        headers.append('Set-Cookie', await destroySession(cookieSession));
       }
 
-      throw redirect(await getAuthorizationUrl({ returnPathname }), {
-        headers: {
-          'Set-Cookie': await destroySession(cookieSession),
-        },
-      });
+      throw redirect(url, { headers });
     }
 
     // Propagate other errors
@@ -592,16 +591,11 @@ async function handleAuthLoader(
 export async function terminateSession(request: Request, { returnTo }: { returnTo?: string } = {}) {
   const { getSession, destroySession } = await getSessionStorage();
   const encryptedSession = await getSession(request.headers.get('Cookie'));
-  const { accessToken } = (await getSessionFromCookie(
-    request.headers.get('Cookie') as string,
-    encryptedSession,
-  )) as Session;
+  const session = await getSessionFromCookie(request.headers.get('Cookie') as string, encryptedSession);
+  const sessionId = session ? getClaimsFromAccessToken(session.accessToken).sessionId : undefined;
 
-  const { sessionId } = getClaimsFromAccessToken(accessToken);
-
-  const headers = {
-    'Set-Cookie': await destroySession(encryptedSession),
-  };
+  const headers = new Headers({ 'Set-Cookie': await destroySession(encryptedSession) });
+  clearPKCECookies(headers, getPKCECookieNames(request));
 
   if (sessionId) {
     return redirect(getWorkOS().userManagement.getLogoutUrl({ sessionId, returnTo }), {

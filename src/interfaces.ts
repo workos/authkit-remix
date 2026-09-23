@@ -3,6 +3,12 @@ import type { OauthTokens, User } from '@workos-inc/node';
 
 export type DataWithResponseInit<T> = ReturnType<typeof data<T>>;
 
+export interface GetAuthURLResult {
+  url: string;
+  /** Forward all headers, including cookie deletions, on the response that starts sign-in. */
+  headers: Headers;
+}
+
 export type HandleAuthOptions = {
   returnPathname?: string;
   onSuccess?: (data: AuthLoaderSuccessData) => void | Promise<void>;

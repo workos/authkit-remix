@@ -4,6 +4,8 @@ import { configure, getConfig } from './config.js';
 import { authkitLoader } from './session.js';
 import { getWorkOS } from './workos.js';
 
+export type { GetAuthURLResult } from './interfaces.js';
+
 export {
   authLoader,
   //

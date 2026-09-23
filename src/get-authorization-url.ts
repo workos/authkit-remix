@@ -1,5 +1,12 @@
+import { createHash, randomBytes } from 'node:crypto';
+import { sealData } from 'iron-session';
+import type { GetAuthURLResult } from './interfaces.js';
+import { clearPKCECookies, getPKCECookie, getPKCECookieNames, PKCE_COOKIE_MAX_AGE, type PKCEPayload } from './pkce.js';
+import { sanitizeReturnPathname } from './return-pathname.js';
 import { getConfig } from './config.js';
 import { getWorkOS } from './workos.js';
+
+const MAX_PKCE_COOKIES = 5;
 
 interface GetAuthURLOptions {
   screenHint?: 'sign-up' | 'sign-in';
@@ -7,18 +14,48 @@ interface GetAuthURLOptions {
   organizationId?: string;
   redirectUri?: string;
   loginHint?: string;
+  request?: Request;
 }
 
-export async function getAuthorizationUrl(options: GetAuthURLOptions = {}) {
-  const { returnPathname, screenHint, organizationId, redirectUri, loginHint } = options;
+export async function getAuthorizationUrl(options: GetAuthURLOptions = {}): Promise<GetAuthURLResult> {
+  const { returnPathname, screenHint, organizationId, redirectUri, loginHint, request } = options;
+  const nonce = randomBytes(32).toString('base64url');
+  const codeVerifier = randomBytes(32).toString('base64url');
+  const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url');
+  // The URL carries only a nonce. The verifier must never travel in URL state,
+  // even encrypted: a leaked callback URL must not be reusable as its cookie.
+  const sealedVerifier = await sealData(
+    {
+      nonce,
+      codeVerifier,
+      // Leave room for sealing and Remix's base64 encoding within the 4 KiB cookie limit.
+      // Count JSON bytes, not characters, since escaping can expand the return path.
+      ...(returnPathname !== undefined && Buffer.byteLength(JSON.stringify(returnPathname), 'utf8') <= 1024
+        ? { returnPathname: sanitizeReturnPathname(returnPathname) }
+        : {}),
+    } satisfies PKCEPayload,
+    { password: getConfig('cookiePassword'), ttl: PKCE_COOKIE_MAX_AGE },
+  );
 
-  return getWorkOS().userManagement.getAuthorizationUrl({
+  const url = getWorkOS().userManagement.getAuthorizationUrl({
     provider: 'authkit',
     clientId: getConfig('clientId'),
     redirectUri: redirectUri || getConfig('redirectUri'),
-    state: returnPathname ? btoa(JSON.stringify({ returnPathname })) : undefined,
+    state: nonce,
+    codeChallenge,
+    codeChallengeMethod: 'S256',
     screenHint,
     organizationId,
     loginHint,
   });
+
+  const headers = new Headers();
+  const previousCookies = getPKCECookieNames(request);
+  // Keep normal concurrent flows, but purge abandoned flows before they cause HTTP 431.
+  if (previousCookies.length >= MAX_PKCE_COOKIES) {
+    clearPKCECookies(headers, previousCookies);
+  }
+  headers.append('Set-Cookie', await getPKCECookie(nonce, request, redirectUri).serialize(sealedVerifier));
+
+  return { url, headers };
 }
