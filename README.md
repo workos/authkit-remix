@@ -132,9 +132,9 @@ export const loader = authLoader({
 
 ## Migrating to browser-bound sign-in
 
-`getSignInUrl(returnPathname?, request?)` and `getSignUpUrl(returnPathname?, request?)` now return **`{ url, headers }`**, not a string. Forward `headers` on the response that starts authentication; returning just the URL will make the callback fail. Do not serialize the result (especially its cookie headers) into loader data for the browser.
+`getSignInUrl(returnPathname?, request?)` and `getSignUpUrl(returnPathname?, request?)` now return **`{ url, headers }`**, not a string. `headers` is a `Headers` instance that may contain multiple `Set-Cookie` values, including deletions. Forward all headers on the response that starts authentication; returning just the URL will make the callback fail. Do not serialize the result (especially its cookie headers) into loader data for the browser.
 
-Use dedicated sign-in/sign-up routes rather than creating login URLs on every page render. This starts the ten-minute login window only when the user chooses to authenticate and avoids accumulating unused flow cookies. Pass the incoming `request` so cookie security attributes reflect the public request protocol. Behind a TLS-terminating proxy, configure the proxy to overwrite `X-Forwarded-Proto` with the trusted client-facing protocol.
+Use dedicated sign-in/sign-up routes rather than creating login URLs on every page render. This starts the ten-minute login window only when the user chooses to authenticate and avoids accumulating unused flow cookies. Pass the incoming `request` so the SDK can prune abandoned flow cookies and cookie security attributes reflect the public request protocol. Without it, the SDK cannot detect accumulated cookies. Behind a TLS-terminating proxy, configure the proxy to overwrite `X-Forwarded-Proto` with the trusted client-facing protocol.
 
 ```ts
 // app/routes/sign-in.ts
@@ -147,11 +147,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 ```
 
-Create `app/routes/sign-up.ts` the same way using `getSignUpUrl`. Link to these routes with ordinary `<a>` elements (or `<Link reloadDocument>`) and do not prefetch them. If you generate both URLs in a loader instead, append both returned `Set-Cookie` values to response headers; never put them in the loader's JSON data.
+Create `app/routes/sign-up.ts` the same way using `getSignUpUrl`. Link to these routes with ordinary `<a>` elements (or `<Link reloadDocument>`) and do not prefetch them. If you generate both URLs in a loader instead, append every value from each result's `headers.getSetCookie()` to response headers; never put them in the loader's JSON data.
 
 Deploy initiation helpers and the callback together across all instances. Old in-flight sign-ins must restart: callbacks without the new browser cookie intentionally fail closed. Do not mix old and new handlers during a rolling deployment. Existing authenticated sessions are unaffected. SDK-managed redirects (`ensureSignedIn`, refresh failures, and organization-switch reauthentication) forward the cookie automatically.
 
 The URL contains only a random state nonce. The PKCE verifier and return pathname are encrypted in a short-lived, host-only HttpOnly cookie, independently for each flow. The callback validates that cookie before exchanging any code, supplies the verifier to WorkOS, and clears the flow cookie on success or failure. Custom session storage does not replace this cookie; login initiation and callback must share an origin and cookie password.
+
+When the incoming request already contains five or more flow cookies, starting a new flow clears those older cookies; affected sign-ins must restart. Signing out also clears outstanding flow cookies. Return paths whose JSON representation exceeds 1 KiB are omitted from the cookie to stay below browser cookie-size limits; the callback then uses its configured `returnPathname` (or `/`).
 
 ## Usage
 

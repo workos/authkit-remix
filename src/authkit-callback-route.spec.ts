@@ -17,10 +17,13 @@ import { getConfig } from './config.js';
 async function createCallbackRequest(url = 'http://example.com/callback', returnPathname?: string) {
   const { url: authUrl, headers } = await getAuthorizationUrl({ returnPathname, request: new Request(url) });
   const state = new URL(authUrl).searchParams.get('state')!;
-  return createRequestWithSearchParams(new Request(url, { headers: { Cookie: headers['Set-Cookie'].split(';')[0] } }), {
-    code: 'test-code',
-    state,
-  });
+  return createRequestWithSearchParams(
+    new Request(url, { headers: { Cookie: headers.getSetCookie()[0].split(';')[0] } }),
+    {
+      code: 'test-code',
+      state,
+    },
+  );
 }
 
 describe('authLoader', () => {
@@ -176,6 +179,19 @@ describe('authLoader', () => {
     assertIsResponse(response);
     expect(response.status).toBe(302);
     expect(response.headers.get('Location')).toBe('http://example.com/dashboard');
+  });
+
+  it('uses the configured default when the requested return path is too large for a cookie', async () => {
+    loader = authLoader({ returnPathname: '/dashboard' });
+    const response = await loader({
+      request: await createCallbackRequest('http://example.com/callback', '/' + 'a'.repeat(2047)),
+      params: {},
+      context: {},
+    });
+
+    assertIsResponse(response);
+    expect(response.headers.get('Location')).toBe('http://example.com/dashboard');
+    expect(authenticateWithCode).toHaveBeenCalledTimes(1);
   });
 
   it('copies search params from returnPathname', async () => {

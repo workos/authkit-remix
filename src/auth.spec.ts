@@ -11,6 +11,10 @@ const refreshSession = jest.mocked(session.refreshSession);
 const getSessionFromCookie = jest.mocked(session.getSessionFromCookie);
 const getClaimsFromAccessToken = jest.mocked(session.getClaimsFromAccessToken);
 const getConfig = jest.mocked(configModule.getConfig);
+const authorizationHeaders = new Headers([
+  ['Set-Cookie', 'wos-auth-verifier-old=; Path=/; Max-Age=0'],
+  ['Set-Cookie', 'wos-auth-verifier-test=sealed; HttpOnly'],
+]);
 
 jest.mock('./session', () => ({
   terminateSession: jest.fn().mockResolvedValue(new Response()),
@@ -28,13 +32,7 @@ jest.mock('@remix-run/node', () => {
   const originalModule = jest.requireActual('@remix-run/node');
   return {
     ...originalModule,
-    redirect: jest.fn().mockImplementation((to, init) => {
-      const response = new Response(null, {
-        status: 302,
-        headers: { Location: to, ...(init?.headers || {}) },
-      });
-      return response;
-    }),
+    redirect: jest.fn((to, init) => originalModule.redirect(to, { ...init })),
     data: jest.fn().mockImplementation((value, init) => ({
       data: value,
       init,
@@ -46,7 +44,7 @@ describe('auth', () => {
   beforeEach(() => {
     jest.spyOn(authorizationUrl, 'getAuthorizationUrl').mockResolvedValue({
       url: 'https://api.workos.com/user_management/authorize',
-      headers: { 'Set-Cookie': 'wos-auth-verifier-test=sealed; HttpOnly' },
+      headers: authorizationHeaders,
     });
   });
 
@@ -55,7 +53,7 @@ describe('auth', () => {
       const request = new Request('https://example.com/sign-in');
       const result = await getSignInUrl('/test', request);
       expect(result.url).toMatch(/^https:\/\/api\.workos\.com/);
-      expect(result.headers['Set-Cookie']).toContain('wos-auth-verifier-');
+      expect(result.headers.getSetCookie()).toEqual(authorizationHeaders.getSetCookie());
       expect(authorizationUrl.getAuthorizationUrl).toHaveBeenCalledWith(expect.objectContaining({ request }));
       expect(authorizationUrl.getAuthorizationUrl).toHaveBeenCalledWith(
         expect.objectContaining({ returnPathname: '/test', screenHint: 'sign-in' }),
@@ -68,7 +66,7 @@ describe('auth', () => {
       const request = new Request('https://example.com/sign-up');
       const result = await getSignUpUrl(undefined, request);
       expect(result.url).toMatch(/^https:\/\/api\.workos\.com/);
-      expect(result.headers['Set-Cookie']).toContain('wos-auth-verifier-');
+      expect(result.headers.getSetCookie()).toEqual(authorizationHeaders.getSetCookie());
       expect(authorizationUrl.getAuthorizationUrl).toHaveBeenCalledWith(expect.objectContaining({ request }));
       expect(authorizationUrl.getAuthorizationUrl).toHaveBeenCalledWith(
         expect.objectContaining({ screenHint: 'sign-up' }),
@@ -271,18 +269,18 @@ describe('auth', () => {
       refreshSession.mockRejectedValueOnce(errorWithSSOCause);
       (authorizationUrl.getAuthorizationUrl as jest.Mock).mockResolvedValueOnce({
         url: authUrl,
-        headers: { 'Set-Cookie': 'pkce-cookie' },
+        headers: authorizationHeaders,
       });
 
       const result = await switchToOrganization(request, organizationId);
 
       expect(authorizationUrl.getAuthorizationUrl).toHaveBeenCalledWith({ organizationId, request });
-      expect(redirect).toHaveBeenCalledWith(authUrl, { headers: { 'Set-Cookie': 'pkce-cookie' } });
+      expect(redirect).toHaveBeenCalledWith(authUrl, { headers: authorizationHeaders });
 
       assertIsResponse(result);
       expect(result.status).toBe(302);
       expect(result.headers.get('Location')).toBe(authUrl);
-      expect(result.headers.get('Set-Cookie')).toBe('pkce-cookie');
+      expect(result.headers.getSetCookie()).toEqual(authorizationHeaders.getSetCookie());
     });
 
     it('should handle mfa_enrollment errors', async () => {
@@ -294,18 +292,18 @@ describe('auth', () => {
       refreshSession.mockRejectedValueOnce(errorWithMFACause);
       (authorizationUrl.getAuthorizationUrl as jest.Mock).mockResolvedValueOnce({
         url: authUrl,
-        headers: { 'Set-Cookie': 'pkce-cookie' },
+        headers: authorizationHeaders,
       });
 
       const result = await switchToOrganization(request, organizationId);
 
       expect(authorizationUrl.getAuthorizationUrl).toHaveBeenCalledWith({ organizationId, request });
-      expect(redirect).toHaveBeenCalledWith(authUrl, { headers: { 'Set-Cookie': 'pkce-cookie' } });
+      expect(redirect).toHaveBeenCalledWith(authUrl, { headers: authorizationHeaders });
 
       assertIsResponse(result);
       expect(result.status).toBe(302);
       expect(result.headers.get('Location')).toBe(authUrl);
-      expect(result.headers.get('Set-Cookie')).toBe('pkce-cookie');
+      expect(result.headers.getSetCookie()).toEqual(authorizationHeaders.getSetCookie());
     });
 
     it('should return error data for Error instances', async () => {

@@ -1,5 +1,6 @@
 import { data, redirect, type LoaderFunctionArgs, type SessionData } from '@remix-run/node';
 import { getAuthorizationUrl } from './get-authorization-url.js';
+import { clearPKCECookies, getPKCECookieNames } from './pkce.js';
 import type {
   AccessToken,
   AuthKitLoaderOptions,
@@ -590,16 +591,11 @@ async function handleAuthLoader(
 export async function terminateSession(request: Request, { returnTo }: { returnTo?: string } = {}) {
   const { getSession, destroySession } = await getSessionStorage();
   const encryptedSession = await getSession(request.headers.get('Cookie'));
-  const { accessToken } = (await getSessionFromCookie(
-    request.headers.get('Cookie') as string,
-    encryptedSession,
-  )) as Session;
+  const session = await getSessionFromCookie(request.headers.get('Cookie') as string, encryptedSession);
+  const sessionId = session ? getClaimsFromAccessToken(session.accessToken).sessionId : undefined;
 
-  const { sessionId } = getClaimsFromAccessToken(accessToken);
-
-  const headers = {
-    'Set-Cookie': await destroySession(encryptedSession),
-  };
+  const headers = new Headers({ 'Set-Cookie': await destroySession(encryptedSession) });
+  clearPKCECookies(headers, getPKCECookieNames(request));
 
   if (sessionId) {
     return redirect(getWorkOS().userManagement.getLogoutUrl({ sessionId, returnTo }), {

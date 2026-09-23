@@ -20,6 +20,19 @@ export function getPKCECookie(state: string, request?: Request, redirectUri?: st
   });
 }
 
+export function getPKCECookieNames(request?: Request): string[] {
+  return (request?.headers.get('Cookie') ?? '')
+    .split(';')
+    .map((cookie) => cookie.split('=')[0].trim())
+    .filter((name) => /^wos-auth-verifier-[a-f0-9]{32}$/.test(name));
+}
+
+export function clearPKCECookies(headers: Headers, cookieNames: string[]): void {
+  for (const name of cookieNames) {
+    headers.append('Set-Cookie', `${name}=; Path=/; Max-Age=0`);
+  }
+}
+
 export interface PKCEPayload {
   nonce: string;
   codeVerifier: string;

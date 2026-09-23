@@ -1,10 +1,12 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { sealData } from 'iron-session';
 import type { GetAuthURLResult } from './interfaces.js';
-import { getPKCECookie, PKCE_COOKIE_MAX_AGE, type PKCEPayload } from './pkce.js';
+import { clearPKCECookies, getPKCECookie, getPKCECookieNames, PKCE_COOKIE_MAX_AGE, type PKCEPayload } from './pkce.js';
 import { sanitizeReturnPathname } from './return-pathname.js';
 import { getConfig } from './config.js';
 import { getWorkOS } from './workos.js';
+
+const MAX_PKCE_COOKIES = 5;
 
 interface GetAuthURLOptions {
   screenHint?: 'sign-up' | 'sign-in';
@@ -26,7 +28,11 @@ export async function getAuthorizationUrl(options: GetAuthURLOptions = {}): Prom
     {
       nonce,
       codeVerifier,
-      ...(returnPathname !== undefined ? { returnPathname: sanitizeReturnPathname(returnPathname) } : {}),
+      // Leave room for sealing and Remix's base64 encoding within the 4 KiB cookie limit.
+      // Count JSON bytes, not characters, since escaping can expand the return path.
+      ...(returnPathname !== undefined && Buffer.byteLength(JSON.stringify(returnPathname), 'utf8') <= 1024
+        ? { returnPathname: sanitizeReturnPathname(returnPathname) }
+        : {}),
     } satisfies PKCEPayload,
     { password: getConfig('cookiePassword'), ttl: PKCE_COOKIE_MAX_AGE },
   );
@@ -43,8 +49,13 @@ export async function getAuthorizationUrl(options: GetAuthURLOptions = {}): Prom
     loginHint,
   });
 
-  return {
-    url,
-    headers: { 'Set-Cookie': await getPKCECookie(nonce, request, redirectUri).serialize(sealedVerifier) },
-  };
+  const headers = new Headers();
+  const previousCookies = getPKCECookieNames(request);
+  // Keep normal concurrent flows, but purge abandoned flows before they cause HTTP 431.
+  if (previousCookies.length >= MAX_PKCE_COOKIES) {
+    clearPKCECookies(headers, previousCookies);
+  }
+  headers.append('Set-Cookie', await getPKCECookie(nonce, request, redirectUri).serialize(sealedVerifier));
+
+  return { url, headers };
 }
