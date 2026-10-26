@@ -3,7 +3,9 @@ name: Release
 on:
   # Invoked by the release-please workflow when a release is created. npm's
   # trusted publisher is bound to release-please.yml (the caller), so a direct
-  # trigger here could not authenticate; re-run the release-please job instead.
+  # trigger here could not authenticate. To retry a failed publish, use "Re-run
+  # failed jobs" on that Release Please run: re-running the whole workflow skips
+  # publish, because the GitHub release already exists.
   workflow_call:
     secrets:
       PUBLIC_SOCKET_FIREWALL_TOKEN:
