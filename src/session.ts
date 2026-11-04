@@ -658,7 +658,7 @@ function isUserAccessTokenPayload(payload: JWTPayload): boolean {
   );
 }
 
-async function verifyAccessToken(accessToken: string) {
+export async function verifyAccessToken(accessToken: string) {
   const JWKS = createRemoteJWKSet(new URL(getWorkOS().userManagement.getJwksUrl(getConfig('clientId'))));
   const issuer = getConfig('issuer');
   try {
