@@ -658,8 +658,20 @@ function isUserAccessTokenPayload(payload: JWTPayload): boolean {
   );
 }
 
+let cachedJWKS: ReturnType<typeof createRemoteJWKSet> | undefined;
+let cachedJWKSUrl: string | undefined;
+
+function getJWKS(): ReturnType<typeof createRemoteJWKSet> {
+  const jwksUrl = getWorkOS().userManagement.getJwksUrl(getConfig('clientId'));
+  if (!cachedJWKS || cachedJWKSUrl !== jwksUrl) {
+    cachedJWKS = createRemoteJWKSet(new URL(jwksUrl));
+    cachedJWKSUrl = jwksUrl;
+  }
+  return cachedJWKS;
+}
+
 export async function verifyAccessToken(accessToken: string) {
-  const JWKS = createRemoteJWKSet(new URL(getWorkOS().userManagement.getJwksUrl(getConfig('clientId'))));
+  const JWKS = getJWKS();
   const issuer = getConfig('issuer');
   try {
     const { payload } = await jwtVerify(accessToken, JWKS, issuer ? { issuer } : undefined);
