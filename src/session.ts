@@ -12,7 +12,7 @@ import type {
 import { getWorkOS } from './workos.js';
 
 import { sealData, unsealData } from 'iron-session';
-import { createRemoteJWKSet, decodeJwt, jwtVerify } from 'jose';
+import { createRemoteJWKSet, decodeJwt, jwtVerify, type JWTPayload } from 'jose';
 import { getConfig } from './config.js';
 import { configureSessionStorage, getSessionStorage } from './sessionStorage.js';
 import { isResponse, isRedirect, isJsonResponse, isDataWithResponseInit } from './utils.js';
@@ -647,12 +647,35 @@ export async function getSessionFromCookie(cookie: string, session?: SessionData
   }
 }
 
-async function verifyAccessToken(accessToken: string) {
-  const JWKS = createRemoteJWKSet(new URL(getWorkOS().userManagement.getJwksUrl(getConfig('clientId'))));
+// Other token types signed by the same environment key (agent and widget
+// tokens) must not authenticate a session cookie.
+function isUserAccessTokenPayload(payload: JWTPayload): boolean {
+  return (
+    typeof payload.sid === 'string' &&
+    typeof payload.auth_time === 'number' &&
+    (payload.sub_profile === undefined || payload.sub_profile === 'user') &&
+    payload.sub_type === undefined
+  );
+}
+
+let cachedJWKS: ReturnType<typeof createRemoteJWKSet> | undefined;
+let cachedJWKSUrl: string | undefined;
+
+function getJWKS(): ReturnType<typeof createRemoteJWKSet> {
+  const jwksUrl = getWorkOS().userManagement.getJwksUrl(getConfig('clientId'));
+  if (!cachedJWKS || cachedJWKSUrl !== jwksUrl) {
+    cachedJWKS = createRemoteJWKSet(new URL(jwksUrl));
+    cachedJWKSUrl = jwksUrl;
+  }
+  return cachedJWKS;
+}
+
+export async function verifyAccessToken(accessToken: string) {
+  const JWKS = getJWKS();
   const issuer = getConfig('issuer');
   try {
-    await jwtVerify(accessToken, JWKS, issuer ? { issuer } : undefined);
-    return true;
+    const { payload } = await jwtVerify(accessToken, JWKS, issuer ? { issuer } : undefined);
+    return isUserAccessTokenPayload(payload);
   } catch (e) {
     return false;
   }
